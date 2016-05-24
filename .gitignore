@@ -1,4 +1,7 @@
 node_modules
+typings
 dist
 *.js
 *.js.map
+
+!gulpfile.js

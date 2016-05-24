@@ -1,0 +1,23 @@
+{
+    "name": "@ncorefx/web",
+    "description": "Contains the base types and utilities for Node.js web applications based on ExpressJS.",
+    "version": "1.0.0",
+    "main": "./dist/index.js",
+    "typings": "./dist/index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ncorefx/ncorefx"
+    },
+    "peerDependencies": {
+        "@ncorefx/fxcore": "~1.0",
+        "@ncorefx/fxcomposition": "~1.0",
+        "@ncorefx/core": "~1.0",
+        "express": "~4.13",
+        "systemjs": "~0.19",
+        "systemjs-builder": "~0.15",
+        "babel-core": "~6.9",
+        "babel-preset-es2015": "~6.9",
+        "react": "~15.1",
+        "react-dom": "~15.1"
+    }
+}

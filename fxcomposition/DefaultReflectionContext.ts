@@ -17,26 +17,38 @@ export class DefaultReflectionContext implements IReflectionContext {
      * The default metadata provider.
      */
     private static MetadataProvider = class implements IMetadataProvider {
+        private _target: Constructor<any>;
+
         /**
          * Initializes a new {MetadataProvider} for the given reflected type.
-         * 
+         *
          * @param target The {Constructor} that represents the reflected type.
          */
-        constructor(private target: Constructor<any>) {
+        constructor( target: Constructor<any>) {
+            this._target = target;
         }
-        
+
         /**
          * Returns the metadata for a given metadata key.
-         * 
+         *
          * @param metadataKey The key.
-         * 
+         *
          * @returns The metadata value that is associated with _key_; otherwise *undefined*.
          */
         public getMetadata(metadataKey: string): any {
-            return Reflect.getMetadata(metadataKey, this.target);
+            return Reflect.getMetadata(metadataKey, this._target);
+        }
+
+        /**
+         * Gets the reflected target that the metadata is associated with.
+         *
+         * @returns A {Constructor} that represents the reflected type.
+         */
+        public get target(): Constructor<any> {
+            return this._target;
         }
     }
-    
+
     /**
      * Determines if a reflected type satisfies the current reflection context.
      *
@@ -66,27 +78,27 @@ export class DefaultReflectionContext implements IReflectionContext {
         let exportTargets = <ExportTargetSet>Reflect.getOwnMetadata("ncorefx:composition:export-targets", reflectedTarget);
 
         if (!exportTargets.has(exportTarget) || !exportTargets.isExportTarget(reflectedTarget)) return undefined;
-        
-        let creationPolicy = <CreationPolicy>Reflect.getOwnMetadata("ncorefx:composition:export-creationpolicy", reflectedTarget) || CreationPolicy.NonShared; 
+
+        let creationPolicy = <CreationPolicy>Reflect.getOwnMetadata("ncorefx:composition:export-creationpolicy", reflectedTarget) || CreationPolicy.NonShared;
 
         if (creationPolicy === CreationPolicy.NonShared) {
             let lazyExport: ILazyExport<any> = <any>new Lazy<any>(() => ReflectionExporter.getExportedValue(exportProvider, reflectedTarget));
-            
+
             lazyExport.metadata = new DefaultReflectionContext.MetadataProvider(reflectedTarget);
-            
+
             return lazyExport;
         }
         else {
             return this.createSharedExport(reflectedTarget, exportProvider);
         }
     }
-    
+
     /**
      * Creates a shared export for a given reflection type.
      *
      * @param reflectedTarget The {Constructor} for which a shared export is required.
      * @param exportProvider The export provider.
-     * 
+     *
      * @returns The singleton {ILazyExport} for _reflectedTarget_.
      *
      * @remarks
@@ -95,9 +107,9 @@ export class DefaultReflectionContext implements IReflectionContext {
     @memoize()
     private createSharedExport(reflectedTarget: Constructor<any>, exportProvider: IExportProvider): ILazyExport<any> {
         let lazyExport: ILazyExport<any> = <any>new Lazy<any>(() => ReflectionExporter.getExportedValue(exportProvider, reflectedTarget));
-        
+
         lazyExport.metadata = new DefaultReflectionContext.MetadataProvider(reflectedTarget);
-        
+
         return lazyExport;
     }
 }

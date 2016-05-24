@@ -1,0 +1,6 @@
+{
+    "ambientDependencies": {
+        "react": "file:../typings/react/index.d.ts",
+        "react-dom": "file:../typings/react-dom/index.d.ts"
+    }
+}

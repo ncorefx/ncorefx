@@ -12,7 +12,7 @@ export function exportAs(...baseTargets: Constructor<any>[]): ClassDecorator {
     return function (target: Function) {
         let thisTarget = <Constructor<any>>target;
 
-        let exportTargets = new ExportTargetSet(!baseTargets || baseTargets.length === 0 ? [thisTarget] : baseTargets);
+        let exportTargets = new ExportTargetSet(!baseTargets || baseTargets.length === 0 ? [thisTarget] : baseTargets.concat([thisTarget]));
 
         Reflect.defineMetadata("ncorefx:composition:export-targets", exportTargets, thisTarget);
     }

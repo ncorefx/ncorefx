@@ -1,0 +1,5 @@
+{
+    "ambientDependencies": {
+        "node": "file:../typings/node/index.d.ts"
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "workspace": true,
+    "name": "ncorefx-workspace",
+    "description": "Workspace for 'ncorefx'.",
+    "version": "1.0.0",
+    "dependencies": {
+        "typescript": "~1.8",
+        "typings": "0.8.1",
+        "rimraf": "~2.5",
+        "gulp": "~3.9",
+        "gulp-npmworkspace": "~1.1"
+    }
+}

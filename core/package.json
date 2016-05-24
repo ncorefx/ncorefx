@@ -1,8 +1,8 @@
 {
-    "name": "@ncorefx/composition",
-    "description": "A composition framework for TypeScript that is modelled on the Microsoft Managed Extensibility Framework (MEF).",
+    "name": "@ncorefx/core",
+    "description": "Contains the base types and utilities for Node.js applications.",
     "version": "1.0.0",
-    "main": "./dist/index",
+    "main": "./dist/index.js",
     "typings": "./dist/index.d.ts",
     "repository": {
         "type": "git",

@@ -1,0 +1,14 @@
+{
+    "name": "@ncorefx/fxcomposition",
+    "description": "A composition framework for TypeScript that is modelled on the Microsoft Managed Extensibility Framework (MEF).",
+    "version": "1.0.0",
+    "main": "./dist/index.js",
+    "typings": "./dist/index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ncorefx/ncorefx"
+    },
+    "peerDependencies": {
+        "@ncorefx/fxcore": "~1.0"
+    }
+}

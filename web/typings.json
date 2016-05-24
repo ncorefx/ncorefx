@@ -1,0 +1,13 @@
+{
+    "ambientDependencies": {
+        "node": "file:../typings/node/index.d.ts",
+        "express": "file:../typings/express/index.d.ts",
+        "express-serve-static-core": "file:../typings/express-serve-static-core/index.d.ts",
+        "mime": "file:../typings/mime/index.d.ts",
+        "serve-static": "file:../typings/serve-static/index.d.ts",
+        "react": "file:../typings/react/index.d.ts",
+        "react-dom": "file:../typings/react-dom/index.d.ts",
+        "systemjs-builder": "file:../typings/systemjs-builder/index.d.ts",
+        "babel-core": "file:../typings/babel-core/index.d.ts"
+    }
+}

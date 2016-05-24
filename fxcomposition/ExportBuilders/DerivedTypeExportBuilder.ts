@@ -32,6 +32,6 @@ export class DerivedTypeExportBuilder<T> extends TypedExportBuilder<T> {
     protected onMeetsContext(reflectedTarget: Constructor<any>): boolean {
         let isDerivedTarget = this.baseTarget.prototype.isPrototypeOf(reflectedTarget.prototype);
 
-        return isDerivedTarget && this.isExportTargetOf(reflectedTarget);
+        return isDerivedTarget;// && this.isExportTargetOf(reflectedTarget);
     }
 }

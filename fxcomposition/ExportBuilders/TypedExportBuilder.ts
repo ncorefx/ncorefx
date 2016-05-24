@@ -24,31 +24,43 @@ export abstract class TypedExportBuilder<T> extends ExportBuilder implements IEx
      * A metadata provider that provides access to metadata associated with the current rule.
      */
     private static MetadataProvider = class implements IMetadataProvider {
+        private _target: Constructor<any>;
+
         /**
          * Initializes a new {MetadataProvider} for the given reflected type.
-         * 
+         *
          * @param target The {Constructor} that represents the reflected type.
          * @param metadata The metadata that has been captured for the current rule.
          */
-        constructor(private target: Constructor<any>, private metadata: Map<string, any>) {
+        constructor(target: Constructor<any>, private metadata: Map<string, any>) {
+            this._target = target;
         }
-        
+
         /**
          * Returns the metadata for a given metadata key.
-         * 
+         *
          * @param metadataKey The key.
-         * 
+         *
          * @returns The metadata value that is associated with _key_; otherwise *undefined*.
-         * 
+         *
          * @remarks
          * Metadata for the current rule is given precedence over metadata that maybe exported from the
          * reflected type.
          */
         public getMetadata(metadataKey: string): any {
-            return this.metadata.get(metadataKey) || Reflect.getMetadata(metadataKey, this.target);
+            return this.metadata.get(metadataKey) || Reflect.getMetadata(metadataKey, this._target);
+        }
+
+        /**
+         * Gets the reflected target that the metadata is associated with.
+         *
+         * @returns A {Constructor} that represents the reflected type.
+         */
+        public get target(): Constructor<any> {
+            return this._target;
         }
     }
-    
+
     private _exportTargets: ExportTargetSet;
     private _importTargets: ImportTarget[];
     private _metadata: Map<string, any>;
@@ -81,16 +93,16 @@ export abstract class TypedExportBuilder<T> extends ExportBuilder implements IEx
     public setCreationPolicy(creationPolicy: CreationPolicy): void {
         this._creationPolicy = creationPolicy;
     }
-    
+
     /**
      * Adds metadata to the matching reflected type.
-     * 
+     *
      * @param metadataKey The metadata key.
      * @param metadataValue The metadata value to store for the reflected type.
      */
     public addMetadata(metadataKey: string, metadataValue: any): IExportBuilderFluentExportOptions<T> {
         this._metadata.set(metadataKey, metadataValue);
-        
+
         return this;
     }
 
@@ -128,7 +140,7 @@ export abstract class TypedExportBuilder<T> extends ExportBuilder implements IEx
     /**
      * Specifies the import targets to apply to the arguments of the reflected type's constructor when
      * creating instances of it.
-     * 
+     *
      * @param imports An array of {ImportTarget}.
      */
     public constructWithImports(...imports: ImportTarget[]): IExportBuilderFluentExportOptions<T> {
@@ -165,13 +177,13 @@ export abstract class TypedExportBuilder<T> extends ExportBuilder implements IEx
      * rule; otherwise *undefined*.
      */
     protected async onGetExport(reflectedTarget: Constructor<any>, exportTarget: Constructor<any>, exportProvider: IExportProvider): Promise<ILazyExport<T>> {
-        if (!this._exportTargets.has(exportTarget)) return undefined;
+        if (reflectedTarget !== exportTarget && !this._exportTargets.has(exportTarget)) return undefined;
 
         if (this._creationPolicy === CreationPolicy.NonShared) {
             let lazyExport: ILazyExport<T> = <any>new Lazy<T>(() => this._builderFunc(exportProvider, reflectedTarget, this._importTargets));
-            
+
             lazyExport.metadata = new TypedExportBuilder.MetadataProvider(reflectedTarget, this._metadata);
-            
+
             return lazyExport;
         }
         else {
@@ -185,7 +197,7 @@ export abstract class TypedExportBuilder<T> extends ExportBuilder implements IEx
      * @param reflectedTarget The {Constructor} for which a shared export is required.
      * @param exportProvider The export provider.
      * @param importTargets The import targets to use when importing any dependencies of _reflectedTarget_.
-     * 
+     *
      * @returns The singleton {ILazyExport} for _reflectedTarget_.
      *
      * @remarks
@@ -194,9 +206,9 @@ export abstract class TypedExportBuilder<T> extends ExportBuilder implements IEx
     @memoize()
     private createSharedExport(reflectedTarget: Constructor<any>, exportProvider: IExportProvider, importTargets: ImportTarget[]): ILazyExport<T> {
         let lazyExport: ILazyExport<T> = <any>new Lazy<T>(() => this._builderFunc(exportProvider, reflectedTarget, this._importTargets));
-        
+
         lazyExport.metadata = new TypedExportBuilder.MetadataProvider(reflectedTarget, this._metadata);
-        
+
         return lazyExport;
     }
 }
