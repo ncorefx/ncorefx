@@ -1,13 +1,13 @@
 {
     "ambientDependencies": {
-        "node": "file:../typings/node/index.d.ts",
-        "express": "file:../typings/express/index.d.ts",
-        "express-serve-static-core": "file:../typings/express-serve-static-core/index.d.ts",
-        "mime": "file:../typings/mime/index.d.ts",
-        "serve-static": "file:../typings/serve-static/index.d.ts",
-        "react": "file:../typings/react/index.d.ts",
-        "react-dom": "file:../typings/react-dom/index.d.ts",
-        "systemjs-builder": "file:../typings/systemjs-builder/index.d.ts",
-        "babel-core": "file:../typings/babel-core/index.d.ts"
+        "node": "file:../ncorefx-typings/node/index.d.ts",
+        "express": "file:../ncorefx-typings/express/index.d.ts",
+        "express-serve-static-core": "file:../ncorefx-typings/express-serve-static-core/index.d.ts",
+        "mime": "file:../ncorefx-typings/mime/index.d.ts",
+        "serve-static": "file:../ncorefx-typings/serve-static/index.d.ts",
+        "react": "file:../ncorefx-typings/react/index.d.ts",
+        "react-dom": "file:../ncorefx-typings/react-dom/index.d.ts",
+        "systemjs-builder": "file:../ncorefx-typings/systemjs-builder/index.d.ts",
+        "babel-core": "file:../ncorefx-typings/babel-core/index.d.ts"
     }
 }

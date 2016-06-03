@@ -1,5 +1,5 @@
 {
     "ambientDependencies": {
-        "node": "file:../typings/node/index.d.ts"
+        "node": "file:../ncorefx-typings/node/index.d.ts"
     }
 }

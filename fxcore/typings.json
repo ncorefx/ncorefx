@@ -1,6 +1,6 @@
 {
     "ambientDependencies": {
-        "lodash": "file:../typings/lodash/index.d.ts",
+        "lodash": "file:../ncorefx-typings/lodash/index.d.ts",
         "zone.js": "npm:zone.js/dist/zone.js.d.ts"
     }
 }
