@@ -97,7 +97,9 @@ export class PackageInfo {
         for (let idx = 0; idx < callsite.stackFrames.length; idx++) {
             stackFrameFilename = callsite.stackFrames[idx].getFileName();
 
-            if (stackFrameFilename.indexOf("PackageInfo") < 0 && stackFrameFilename.indexOf("NodeGuard") < 0) break;
+            if (stackFrameFilename.indexOf("PackageInfo") < 0
+                && stackFrameFilename.indexOf("NodeGuard") < 0
+                && stackFrameFilename.indexOf("ResourceManager") < 0) break;
         }
 
         return stackFrameFilename
@@ -134,6 +136,13 @@ export class PackageInfo {
         return undefined;
     }
 
+    /**
+     * Returns the root module.
+     *
+     * @currentModule The current module.
+     *
+     * @returns The {NodeModule} found at the root by walking up the module hierarchy.
+     */
     private static getRootModulePath(currentModule: NodeModule): string {
         if (currentModule.parent === null)
         {

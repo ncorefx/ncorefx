@@ -2,6 +2,8 @@
     "ambientDependencies": {
         "node": "file:../ncorefx-typings/node/index.d.ts",
         "lodash": "file:../ncorefx-typings/lodash/index.d.ts",
-        "zone.js": "npm:zone.js/dist/zone.js.d.ts"
+        "zone.js": "npm:zone.js/dist/zone.js.d.ts",
+        "os-locale": "file:../ncorefx-typings/os-locale/index.d.ts",
+        "intl-messageformat": "file:../ncorefx-typings/intl-messageformat/index.d.ts"
     }
 }

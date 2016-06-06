@@ -222,6 +222,9 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
                 dependencies["crypto"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
                 dependencies["fs"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
                 dependencies["path"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
+                dependencies["os-locale"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
+                dependencies["intl-messageformat"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/node_modules/intl-messageformat/index.js");
+                dependencies["intl-messageformat-parser"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/node_modules/intl-messageformat-parser/index.js");
             }
             else if (dependency === "zone.js") {
                 // Make sure we bundle the non-Node.js version of zone.js
