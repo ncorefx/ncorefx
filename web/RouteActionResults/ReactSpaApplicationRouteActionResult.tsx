@@ -1,5 +1,7 @@
-import {Tuple, InvalidOperationError, memoize} from "@ncorefx/fxcore";
+import {Tuple, InvalidOperationError, memoize, PackageInfo, Runtime} from "@ncorefx/fxcore";
+
 import {fsAsync} from "@ncorefx/core";
+
 import * as express from "express";
 import * as React from "react";
 import {renderToString} from "react-dom/server";
@@ -82,7 +84,7 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
 
             response.type("text/html");
 
-            let selectedScriptSet = this.isES2015Browser() && this.isDevelopment()
+            let selectedScriptSet = this.isES2015Browser() && Runtime.isDevelopmentRuntime()
                 ? scriptSet.debugScripts
                 : this.isES2015Browser()
                     ? scriptSet.es6Scripts
@@ -97,7 +99,9 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
 
     @memoize()
     private async generateSystemJSScripts(appName: string): Promise<SpaPageScriptSet> {
-        let cachePath = path.join(process.cwd(), "./.spacache");
+        let rootPath = PackageInfo.getEntryPackage().location;
+
+        let cachePath = path.join(rootPath, "./.spacache");
 
         if (!(await fsAsync.exists(cachePath))) {
             await fsAsync.mkdir(cachePath);
@@ -122,8 +126,8 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
         await fsAsync.writeFile(appScriptPath, `System.import("${appName}");`);
 
         let debugScripts = [
-            this.makePackageRelativePath(process.cwd(), appConfigScriptPath),
-            this.makePackageRelativePath(process.cwd(), appScriptPath)
+            this.makePackageRelativePath(rootPath, appConfigScriptPath),
+            this.makePackageRelativePath(rootPath, appScriptPath)
         ];
 
         let appScriptES6BundlePath = path.join(appCachePath, `${appName}-bundle-es6.js`);
@@ -132,7 +136,7 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
 
         await builder.buildStatic(appName, appScriptES6BundlePath, { runtime: false });
 
-        let es6Scripts = [this.makePackageRelativePath(process.cwd(), appScriptES6BundlePath)];
+        let es6Scripts = [this.makePackageRelativePath(rootPath, appScriptES6BundlePath)];
 
         let appScriptES5BundlePath = path.join(appCachePath, `${appName}-bundle-es5.js`);
 
@@ -148,8 +152,8 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
             });
 
         let es5Scripts = [
-            this.makePackageRelativePath(process.cwd(), path.join(path.parse(require.resolve("babel-polyfill")).dir, "../dist/polyfill.min.js")),
-            this.makePackageRelativePath(process.cwd(), appScriptES5BundlePath)
+            this.makePackageRelativePath(rootPath, path.join(path.parse(require.resolve("babel-polyfill")).dir, "../dist/polyfill.min.js")),
+            this.makePackageRelativePath(rootPath, appScriptES5BundlePath)
         ];
 
         return new SpaPageScriptSet(debugScripts, es6Scripts, es5Scripts);
@@ -215,9 +219,9 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
             dependencies[dependency] = this.makePackageRelativePath(rootPackagePath, path.join(dependencyPath, dependencyPackage["main"] || "./index.js"));
 
             if (dependency === "@ncorefx/fxcore") {
-                // The 'reflect-metadata' package brings in 'crypto'. It only does this when it needs to polyfill a WeakMap in Node.js,
-                // but SystemJS needs to resolve it.
-                dependencies["crypto"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullCrypto.js");
+                dependencies["crypto"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
+                dependencies["fs"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
+                dependencies["path"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
             }
             else if (dependency === "zone.js") {
                 // Make sure we bundle the non-Node.js version of zone.js
@@ -246,19 +250,5 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
         if (!matches) return false;
 
         return parseInt(matches[1]) >= 50;
-    }
-
-    /**
-     * Detects if we're runnning in 'development' mode.
-     *
-     * @returns *true* if the NODE_ENV environment variable is not defined or set to anything other than
-     * 'production'; otherwise *false*.
-     */
-    private isDevelopment(): boolean {
-        let nodeEnv = process.env.NODE_ENV;
-
-        if (!nodeEnv) return true;
-
-        return nodeEnv !== "production";
     }
 }

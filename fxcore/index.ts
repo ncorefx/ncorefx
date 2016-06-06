@@ -12,6 +12,9 @@ export * from "./Lazy";
 export * from "./ILazy";
 export * from "./Tuple";
 export * from "./Context";
+export * from "./Runtime";
+export * from "./RuntimeType";
+export * from "./PackageInfo";
 
 export * from "./Decorators/index";
 
