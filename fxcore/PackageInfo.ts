@@ -1,5 +1,9 @@
 import {nodeGuard} from "./Decorators/NodeGuardDecorator";
 
+import {NotImplementedError} from "./Errors/NotImplementedError";
+
+import {SyncLazy} from "./SyncLazy";
+
 import * as path from "path";
 import * as fs from "fs";
 
@@ -41,6 +45,7 @@ export class PackageInfo {
     };
 
     private _locationPath: string;
+    private _packageData: SyncLazy<any>;
 
     /**
      * Initializes a new {PackageInfo} object for the given path.
@@ -48,7 +53,8 @@ export class PackageInfo {
      * @param packageJsonPath A path to a 'package.json' file.
      */
     constructor(packageJsonPath: string) {
-        this._locationPath = path.dirname(packageJsonPath);
+        this._locationPath = packageJsonPath.substring(0, packageJsonPath.length - 13);
+        this._packageData = new SyncLazy<any>(this.loadPackageData.bind(this));
     }
 
     /**
@@ -58,6 +64,67 @@ export class PackageInfo {
      */
     public get location(): string {
         return this._locationPath;
+    }
+
+    /**
+     * Gets the name of the package.
+     *
+     * @returns A string representing the name of the package.
+     */
+    public get name(): string {
+        return this._packageData.value["name"];
+    }
+
+    /**
+     * Gets the description of the package.
+     *
+     * @returns A string representing the description of the package.
+     */
+    public get description(): string {
+        return this._packageData.value["description"];
+    }
+
+    /**
+     * Gets the version of the package.
+     *
+     * @returns A string representing the version of the package.
+     */
+    public get version(): string {
+        return this._packageData.value["version"];
+    }
+
+    /**
+     * Gets the 'main' property of the package.
+     *
+     * @returns A string representing the 'main' property of the package.
+     */
+    public get main(): string {
+        return this._packageData.value["main"] || "./index.js";
+    }
+
+    /**
+     * Gets the 'dependencies' property of the package.
+     *
+     * @returns A string representing the 'dependencies' property of the package.
+     */
+    public get dependencies(): Object {
+        return this._packageData.value["dependencies"];
+    }
+
+    /**
+     * Loads the contents of the 'package.json' file.
+     *
+     * @returns An object defining the properties contained in the represented 'package.json' file.
+     */
+    @nodeGuard()
+    private loadPackageData(): Object {
+        return require(path.join(this._locationPath, "package.json"));
+    }
+
+    private loadPackageData_Browser(): Object {
+        // In a Browser runtime, loadPackageData() is not used.
+        // See: PackageInfo#getEntryPackage_Browser() for more details.
+        return undefined;
     }
 
     /**
@@ -71,7 +138,12 @@ export class PackageInfo {
     }
 
     private static getEntryPackage_Browser(): PackageInfo {
-        return undefined;
+        let packageData = Reflect.getMetadata("ncorefx:packages:entry-package", window);
+        let packageInfo = new PackageInfo(packageData.location);
+
+        packageInfo._packageData = new SyncLazy<any>(() => packageData.packageData);
+
+        return packageInfo;
     }
 
     /**
@@ -108,7 +180,7 @@ export class PackageInfo {
     }
 
     private static getExecutingPackage_Browser(filename?: string): PackageInfo {
-        return undefined;
+        throw new NotImplementedError("PackageInfo#getExecutingPackage is not supported in a Browser runtime.");
     }
 
     /**

@@ -7,7 +7,11 @@ export class Runtime {
      * @returns A {RuntimeType} value.
      */
     public static getRuntimeType(): RuntimeType {
-        return (process && global) ? RuntimeType.Node : RuntimeType.Browser;
+        if (typeof window !== "undefined") {
+            return <any>global !== <any>window ? RuntimeType.Node : RuntimeType.Browser
+        }
+
+        return RuntimeType.Node;
     }
 
     /**

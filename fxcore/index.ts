@@ -8,6 +8,7 @@ import * as lodash from "lodash";
 lodash.memoize.Cache = Map;
 
 export * from "./CoreTypes";
+export * from "./SyncLazy";
 export * from "./Lazy";
 export * from "./ILazy";
 export * from "./Tuple";

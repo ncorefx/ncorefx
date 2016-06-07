@@ -1,4 +1,8 @@
-import {Tuple, InvalidOperationError, memoize, PackageInfo, Runtime} from "@ncorefx/fxcore";
+import {
+    Constructor,
+    PackageInfo,
+    InvalidOperationError
+} from "@ncorefx/fxcore";
 
 import {fsAsync} from "@ncorefx/core";
 
@@ -7,251 +11,320 @@ import * as React from "react";
 import {renderToString} from "react-dom/server";
 import * as path from "path";
 import * as fs from "fs";
-import * as os from "os";
-import * as SystemJSBuilder from "systemjs-builder";
-import * as babel from "babel-core";
 
 import {RouteActionResult} from "./RouteActionResult";
+import {SpaAppHostProperties} from "./SpaAppHostProperties";
+import {DefaultSpaAppHost} from "./DefaultSpaAppHost";
 
 import {HttpContext} from "../HttpContext";
-
-class SpaPageScriptSet {
-    constructor(public debugScripts, public es6Scripts: string[], public es5Scripts: string[]) {
-    }
-}
-
-class SpaPageHostProps {
-    constructor(public scriptPaths: string[]) {
-    }
-}
-
-class SpaPageHost extends React.Component<SpaPageHostProps, {}> {
-    public render(): JSX.Element {
-        return (
-            <html>
-                <head>
-                    <script src="./node_modules/systemjs/dist/system.js"></script>
-                </head>
-
-                <body>
-                    <div id="app"></div>
-                    { this.props.scriptPaths.map((scriptPath, idx) => <script key={idx} src={scriptPath}></script>) }
-                </body>
-            </html>
-        );
-    }
-}
 
 /**
  * Represents a HTML content type that is the result of rendering a React based Single Page
  * Application (SPA).
  */
 export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
-    private _spaPackagePath: string;
-    private _absoluteSpaPackagePath: string;
-    private _packageStack: Tuple<string, Object>[];
+    private _spaAppPackageInfo: PackageInfo;
+    private _hostComponentType: Constructor<React.Component<SpaAppHostProperties, {}>>;
+    private _packageInfoStack: PackageInfo[];
 
     /**
-     * Initializes a new {ReactSpaApplicationRouteActionResult} object for the given path.
+     * Initializes a new {ReactSpaApplicationRouteActionResult} object for the given SPA.
      *
-     * @param spaApplicationPath The path to the Single Page Application.
+     * @param spaPackageName The package name of the Single Page Application.
+     * @param hostComponentType A {Constructor} that represents the reflection type of the React Component
+     * that will be used to render the HTML.
      */
-    constructor(spaApplicationPath: string) {
+    constructor(spaPackageName: string, hostComponentType?: Constructor<React.Component<SpaAppHostProperties, {}>>) {
         super();
 
-        this._spaPackagePath = spaApplicationPath;
-
         try {
-            this._absoluteSpaPackagePath = require.resolve(path.join(spaApplicationPath, "package.json"));
+            this._spaAppPackageInfo = new PackageInfo(require.resolve(path.join(spaPackageName, "package.json")));
         }
         catch (error) {
-            throw new InvalidOperationError(`Path '${spaApplicationPath}' did not resolve to a package.`);
+            throw new InvalidOperationError(`Could not resolve '${spaPackageName}' to a package.`);
         }
+
+        this._hostComponentType = hostComponentType || DefaultSpaAppHost;
     }
 
     /**
-     * Writes the Single Page Application (SPA) to the ExpressJS response.
+     * Renders the SPA application to the browser.
      *
-     * @param response The {express.Response} to write the data to.
+     * @param response The {express.Response} object to write the content to.
      */
     protected async onWriteResult(response: express.Response): Promise<void> {
-        let spaPackage = require(this._absoluteSpaPackagePath);
+        let rootPath = PackageInfo.getEntryPackage().location;
+        let bootstrapPackageName = `${this._spaAppPackageInfo.name}-bootstrap`;
+        let bootstrapPackagePath = path.join(rootPath, "node_modules", bootstrapPackageName);
+        let bootstrapPackageInfo: PackageInfo;
 
-        this._packageStack = [Tuple.create(this._absoluteSpaPackagePath, spaPackage)];
+        if (fs.existsSync(bootstrapPackagePath)) {
+            bootstrapPackageInfo = new PackageInfo(path.join(bootstrapPackagePath, "package.json"));
 
-        try {
-            let scriptSet = await this.generateSystemJSScripts(spaPackage.name);
+            if (bootstrapPackageInfo.version !== this._spaAppPackageInfo.version) {
+                // The version of the SPA is different to the bootstrap - delete and rebuild it
+                fs.rmdirSync(bootstrapPackageInfo.location);
 
-            response.type("text/html");
-
-            let selectedScriptSet = this.isES2015Browser() && Runtime.isDevelopmentRuntime()
-                ? scriptSet.debugScripts
-                : this.isES2015Browser()
-                    ? scriptSet.es6Scripts
-                    : scriptSet.es5Scripts;
-
-            response.send(renderToString(<SpaPageHost scriptPaths={selectedScriptSet} />));
+                bootstrapPackageInfo = await this.buildBootstrapPackage(rootPath, bootstrapPackageName, bootstrapPackagePath);
+            }
         }
-        catch (error) {
-            console.log(error);
+        else {
+            bootstrapPackageInfo = await this.buildBootstrapPackage(rootPath, bootstrapPackageName, bootstrapPackagePath);
         }
+
+        let scriptSet = await this.generateSystemJSScripts(bootstrapPackageInfo);
+
+        response.type("text/html");
+        response.send(renderToString(new this._hostComponentType(new SpaAppHostProperties(scriptSet.debugScripts)).render()));
     }
 
-    @memoize()
-    private async generateSystemJSScripts(appName: string): Promise<SpaPageScriptSet> {
-        let rootPath = PackageInfo.getEntryPackage().location;
-
-        let cachePath = path.join(rootPath, "./.spacache");
-
-        if (!(await fsAsync.exists(cachePath))) {
-            await fsAsync.mkdir(cachePath);
-        }
+    /**
+     * Builds the bootstrap package for the SPA application.
+     *
+     * @returns A promise that yields a {PackageInfo} for the bootstrap package.
+     */
+    private async buildBootstrapPackage(rootPath: string, bootstrapPackageName: string,  bootstrapPackagePath: string): Promise<PackageInfo> {
+        this._packageInfoStack = [this._spaAppPackageInfo];
 
         let systemJSConfig = {
             baseURL: "./node_modules",
             defaultExtention: "js",
-            packages: await this.buildSystemJsPackages()
+            meta: {
+                "*.json": { loader: "json" }
+            },
+            map: {
+                "json": ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
+            },
+            packages: await this.buildSystemJSPackages()
         };
 
-        let appCachePath = path.join(cachePath, appName);
+        let bootstrapJSCode = `"use strict";
 
-        if (!(await fsAsync.exists(appCachePath))) {
-            await fsAsync.mkdir(appCachePath);
-        }
+const React = require("react");
+const ReactDOM = require("react-dom");
+const Application = require("${this._spaAppPackageInfo.name}");
 
-        let appConfigScriptPath = path.join(appCachePath, "config.js");
-        let appScriptPath = path.join(appCachePath, `${appName}.js`);
+let entryPackageData = require("${this._spaAppPackageInfo.name}/package.json");
 
-        await fsAsync.writeFile(appConfigScriptPath, `System.config(${JSON.stringify(systemJSConfig, null, 2)});`);
-        await fsAsync.writeFile(appScriptPath, `System.import("${appName}");`);
+Reflect.defineMetadata("ncorefx:packages:entry-package", {location: "${this._spaAppPackageInfo.name}/package.json", packageData: entryPackageData}, window);
 
-        let debugScripts = [
-            this.makePackageRelativePath(rootPath, appConfigScriptPath),
-            this.makePackageRelativePath(rootPath, appScriptPath)
-        ];
+let application = new Application();
 
-        let appScriptES6BundlePath = path.join(appCachePath, `${appName}-bundle-es6.js`);
+let divElement = document.getElementById("app") || document.getElementsByTagName("div").item(0);
 
-        let builder = new SystemJSBuilder(systemJSConfig.baseURL, systemJSConfig);
+application.onInitialize()
+    .then((applicationState) => {
+        ReactDOM.render(application.onGetRootComponent(applicationState), divElement);
+    });`;
 
-        await builder.buildStatic(appName, appScriptES6BundlePath, { runtime: false });
+        let bootstrapPackageJson = `{
+    "name": "${bootstrapPackageName}",
+    "description": "Bootstrapper for '${this._spaAppPackageInfo.name}'",
+    "version": "${this._spaAppPackageInfo.version}",
+    "main": "./index.js",
+    "peerDependencies": {
+        "${this._spaAppPackageInfo.name}": "${this._spaAppPackageInfo.version}"
+    }
+}`;
 
-        let es6Scripts = [this.makePackageRelativePath(rootPath, appScriptES6BundlePath)];
+        fs.mkdirSync(bootstrapPackagePath);
 
-        let appScriptES5BundlePath = path.join(appCachePath, `${appName}-bundle-es5.js`);
+        let bootstrapJSCodePath = path.join(bootstrapPackagePath, "index.js");
+        let bootstrapPackageJsonPath = path.join(bootstrapPackagePath, "package.json");
 
-        builder = new SystemJSBuilder(systemJSConfig.baseURL, systemJSConfig);
+        await fsAsync.writeFile(bootstrapJSCodePath, bootstrapJSCode);
+        await fsAsync.writeFile(bootstrapPackageJsonPath, bootstrapPackageJson);
 
-        await builder.buildStatic(appName,
-            appScriptES5BundlePath,
-            {
-                runtime: true,
-                fetch: (load, fetch) => {
-                    return babel.transformFileSync(load.name.substring(os.platform() === "win32" ? 8 : 7), { presets: ["es2015"], compact: false }).code;
-                }
-            });
-
-        let es5Scripts = [
-            this.makePackageRelativePath(rootPath, path.join(path.parse(require.resolve("babel-polyfill")).dir, "../dist/polyfill.min.js")),
-            this.makePackageRelativePath(rootPath, appScriptES5BundlePath)
-        ];
-
-        return new SpaPageScriptSet(debugScripts, es6Scripts, es5Scripts);
+        return new PackageInfo(bootstrapPackageJsonPath);
     }
 
-    private async buildSystemJsPackages(moduleFormat: string = "cjs"): Promise<Object> {
+    /**
+     * Generates the complete set of scripts that will be needed by the SystemJS runtime.
+     *
+     * @param bootstrapPackageInfo The {PackageInfo} that represents the bootstrap package for the SPA
+     * application being requested.
+     *
+     * @returns A promise that yields a {ScriptSet} defining the sets of scripts that support debug, ES2015
+     * and ES5.
+     */
+    private async generateSystemJSScripts(bootstrapPackageInfo: PackageInfo): Promise<ScriptSet> {
+        this._packageInfoStack = [bootstrapPackageInfo, this._spaAppPackageInfo];
+
+        let rootPath = PackageInfo.getEntryPackage().location;
+
+        let scriptSet = new ScriptSet();
+
+        let appConfigScriptPath = path.join(bootstrapPackageInfo.location, "config.js");
+        let appScriptPath = path.join(bootstrapPackageInfo.location, "run.js");
+
+        if (!fs.existsSync(appConfigScriptPath)) {
+            let systemJSConfig = {
+                baseURL: "./node_modules",
+                defaultExtention: "js",
+                meta: {
+                    "*.json": { loader: "json" }
+                },
+                map: {
+                    "json": ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
+                },
+                packages: await this.buildSystemJSPackages()
+            };
+
+            await fsAsync.writeFile(appConfigScriptPath, `System.config(${JSON.stringify(systemJSConfig, null, 2)});`);
+        }
+
+        if (!fs.existsSync(appScriptPath)) {
+            await fsAsync.writeFile(appScriptPath, `System.import("${bootstrapPackageInfo.name}");`);
+        }
+
+        scriptSet.debugScripts = [
+            ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, appConfigScriptPath),
+            ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, appScriptPath)
+        ];
+
+        return scriptSet;
+    }
+
+    /**
+     * Builds the package configuration for SystemJS configuration by processing the current
+     * PackageInfo stack.
+     *
+     * @returns An object that describes the packages that should be processed by SystemJS during
+     * bundling.
+     */
+    private async buildSystemJSPackages(): Promise<Object> {
         let systemJSPackages = {};
 
         systemJSPackages["react"] = { "main": "./dist/react-with-addons.min.js", "format": "cjs" };
         systemJSPackages["react-dom"] = { "main": "./dist/react-dom.min.js", "format": "cjs" };
 
         while (true) {
-            let currentPackage = this._packageStack.pop();
+            let currentPackageInfo = this._packageInfoStack.pop();
 
-            if (!currentPackage) break;
+            if (!currentPackageInfo) break;
 
-            let currentPackagePath = path.parse(currentPackage.item1).dir;
-            let currentPackageData = currentPackage.item2;
+            if (currentPackageInfo.name === "systemjs" || currentPackageInfo.name === "react"
+                || currentPackageInfo.name === "react-dom" || currentPackageInfo.name === "babel-polyfill") {
 
-            if (currentPackageData["name"] === "systemjs"
-                || currentPackageData["name"] === "react"
-                || currentPackageData["name"] === "react-dom"
-                || currentPackageData["name"] === "babel-polyfill") continue;
-
-            systemJSPackages[currentPackageData["name"]] = {
-                "main": currentPackageData["main"] || "./index.js",
-                "format": moduleFormat
+                continue;
+            }
+            systemJSPackages[currentPackageInfo.name] = {
+                "main": currentPackageInfo.main || "./index.js",
+                "format": "cjs"
             };
 
-            if (!currentPackageData["dependencies"]) continue;
+            if (!currentPackageInfo.dependencies) continue;
 
-            systemJSPackages[currentPackageData["name"]]["map"] = await this.buildSystemJsPackageDependencies(currentPackagePath, currentPackage);
+            systemJSPackages[currentPackageInfo.name]["map"] = await this.buildSystemJSPackageDependencies(currentPackageInfo.location, currentPackageInfo);
         }
 
         return systemJSPackages;
     }
 
-    private async buildSystemJsPackageDependencies(rootPackagePath: string, currentPackage: Tuple<string, Object>): Promise<Object> {
+    /**
+     * Recursively builds the map configuration for a SystemJS package configuration by traversing the given
+     * package's dependencies.
+     *
+     * @param rootPath The root path from which all found dependencies should be relative.
+     * @param packageInfo The {PackageInfo} for the package that will be mapped.
+     *
+     * @returns An object that describes all the child dependencies of _packageInfo_ and their location
+     * relative to _rootPath_.
+     */
+    private async buildSystemJSPackageDependencies(rootPath: string, packageInfo: PackageInfo): Promise<Object> {
         let dependencies = {};
 
-        let currentPackagePath = path.parse(currentPackage.item1).dir;
-        let currentPackageData = currentPackage.item2;
+        for (let dependency in packageInfo.dependencies) {
+            let dependencyPackageInfo = await this.resolveDependentPackage(packageInfo, dependency);
 
-        for (let dependency in currentPackageData["dependencies"]) {
-            let dependencyPackagePath = path.join(currentPackagePath, "node_modules", dependency, "package.json");
-
-            if (!fs.existsSync(dependencyPackagePath)) {
-                try {
-                    let absoluteDependencyPath = require.resolve(path.join(dependency, "package.json"));
-
-                    this._packageStack.push(Tuple.create(absoluteDependencyPath, require(absoluteDependencyPath)));
-                }
-                catch (error) {
-                    throw new InvalidOperationError(`Could not resolve '${dependency}' to a package.`);
-                }
-
-                continue;
-            }
-
-            let dependencyPath = path.join(currentPackagePath, "node_modules", dependency);
-            let dependencyPackage = require(dependencyPackagePath);
-
-            dependencies[dependency] = this.makePackageRelativePath(rootPackagePath, path.join(dependencyPath, dependencyPackage["main"] || "./index.js"));
+            dependencies[dependency] = ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, path.join(dependencyPackageInfo.location, dependencyPackageInfo.main));
 
             if (dependency === "@ncorefx/fxcore") {
+                // Write out the null packages that will be requested via fxcore
                 dependencies["crypto"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
                 dependencies["fs"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
                 dependencies["path"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
                 dependencies["os-locale"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
-                dependencies["intl-messageformat"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/node_modules/intl-messageformat/index.js");
-                dependencies["intl-messageformat-parser"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/node_modules/intl-messageformat-parser/index.js");
+                dependencies["child_process"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
             }
             else if (dependency === "zone.js") {
-                // Make sure we bundle the non-Node.js version of zone.js
-                dependencies["zone.js"] = this.makePackageRelativePath(rootPackagePath, path.join(dependencyPath, "./dist/zone.min.js"));
+                // Make sure we bundle the Browser version of zone.js
+                dependencies["zone.js"] = ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, path.join(dependencyPackageInfo.location, "./dist/zone.min.js"));
             }
 
-            dependencies = Object.assign(dependencies, await this.buildSystemJsPackageDependencies(rootPackagePath, Tuple.create(dependencyPackagePath, dependencyPackage)));
+            dependencies = Object.assign(dependencies, await this.buildSystemJSPackageDependencies(rootPath, dependencyPackageInfo));
         }
 
         return dependencies;
     }
 
-    private makePackageRelativePath(packagePath: string, pathToMake: string): string {
-        return `./${pathToMake.substr(packagePath.length + 1).replace(/\\/g, "/")}`;
+    /**
+     * Returns the package for a specified dependency relative to another package using Node.js resolution semantics.
+     *
+     * @param packageInfo The {PackageInfo} that represents the source package.
+     * @param dependencyName The name of the dependency to resolve from _packageInfo_.
+     *
+     * @returns A promise that yields a {PackageInfo} representing the package that was found for
+     * _dependencyName_.
+     *
+     * @throws {InvalidOperationError}
+     * The specified dependency could not be resolved relative to _packageInfo_.
+     */
+    private async resolveDependentPackage(packageInfo: PackageInfo, dependencyName: string): Promise<PackageInfo> {
+        let currentPath: string = undefined;
+        let targetPath: string = packageInfo.location;
+        let targetPackagePath = path.join(targetPath, "node_modules", dependencyName, "package.json");
+
+        if (fs.existsSync(targetPackagePath)) return new PackageInfo(targetPackagePath);
+
+        targetPath = path.resolve(targetPath, "../..");
+        targetPackagePath = path.join(targetPath, "node_modules", dependencyName, "package.json");
+
+        while (targetPath !== currentPath) {
+            if (fs.existsSync(targetPackagePath)) return new PackageInfo(targetPackagePath);
+
+            currentPath = targetPath;
+
+            targetPath = path.resolve(targetPath, "../..");
+            targetPackagePath = path.join(targetPath, "node_modules", dependencyName, "package.json");
+        }
+
+        throw new InvalidOperationError(`Could not resolve package '${dependencyName}' from '${packageInfo.location}'.`);
     }
 
     /**
-     * Detects if the browser is Chrome 50+ by inspecting the User-Agent header.
+     * Returns the relative path from a root path and a path to make relative to it.
      *
-     * @returns *true* if the User-Agent header indicates a compatible version of Chrome that supports ES6 features;
-     * otherwise *false*.
+     * @param rootPath The root path.
+     * @param pathToMake The path that is to be made relative to _rootPath_.
+     *
+     * @returns A string representing the relative path from _pathToMake_.
      */
-    private isES2015Browser(): boolean {
-        let matches = /Chrome\/(\d*)/.exec(HttpContext.current.request.get("User-Agent"));
+    private static makeRelativePath(rootPath: string, pathToMake: string): string {
+        return `./${pathToMake.substr(rootPath.length + 1).replace(/\\/g, "/")}`;
+    }
+}
 
-        if (!matches) return false;
 
-        return parseInt(matches[1]) >= 50;
+/**
+ * Encapsulates the individual set of scripts to support debug, ES2015 and ES5 scripts for the generated SPA.
+ *
+ * @remarks
+ * The {ScriptSet} class is used privately by the {ReactSpaApplicationRouteActionResult} class during
+ * script generation.
+ */
+class ScriptSet {
+    /**
+     * Initializes a new {ScriptSet} object.
+     */
+    constructor()
+    /**
+     * Initializes a new {ScriptSet} object for the given set of scripts.
+     *
+     * @param debugScripts An array of paths representing the debug scripts.
+     * @param es2015Scripts An array of paths representing the ES2015 scripts.
+     * @param es5Scripts An array of paths representing the ES5 scripts.
+     */
+    constructor(public debugScripts?: string[], public es2015Scripts?: string[], public es5Scripts?: string[]) {
     }
 }

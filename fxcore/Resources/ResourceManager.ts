@@ -15,10 +15,9 @@ export class ResourceManager {
     private _packageInfo: PackageInfo;
     private _cultureInfo: CultureInfo;
 
-    constructor()
     constructor(packageInfo: PackageInfo)
-    constructor(packageInfo?: PackageInfo, cultureInfo?: CultureInfo) {
-        this._packageInfo = packageInfo || PackageInfo.getExecutingPackage();
+    constructor(packageInfo: PackageInfo, cultureInfo?: CultureInfo) {
+        this._packageInfo = packageInfo;
         this._cultureInfo = cultureInfo || CultureInfo.getCurrentCulture();
     }
 
