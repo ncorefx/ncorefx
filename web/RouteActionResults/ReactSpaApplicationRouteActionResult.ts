@@ -12,6 +12,9 @@ import * as React from "react";
 import {renderToString} from "react-dom/server";
 import * as path from "path";
 import * as fs from "fs";
+import * as SystemJSBuilder from "systemjs-builder";
+import * as os from "os";
+import * as babel from "babel-core";
 
 import {RouteActionResult} from "./RouteActionResult";
 import {SpaAppHostProperties} from "./SpaAppHostProperties";
@@ -76,7 +79,8 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
         let scriptSet = await this.generateSystemJSScripts(bootstrapPackageInfo);
 
         response.type("text/html");
-        response.send(renderToString(new this._hostComponentType(new SpaAppHostProperties(scriptSet.debugScripts)).render()));
+        response.send(renderToString(new this._hostComponentType(new SpaAppHostProperties([ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs").replace("index.js", "dist/system.js"))],
+                                                                                           scriptSet.debugScripts)).render()));
     }
 
     /**
@@ -170,22 +174,22 @@ new Application().start();
 
         let appConfigScriptPath = path.join(bootstrapPackageInfo.location, "config.js");
         let appScriptPath = path.join(bootstrapPackageInfo.location, "run.js");
+        let es2015ScriptPath =  path.join(bootstrapPackageInfo.location, "es2015-bundle.js");
+        let es5ScriptPath =  path.join(bootstrapPackageInfo.location, "es5-bundle.js");
 
-        if (!fs.existsSync(appConfigScriptPath)) {
-            let systemJSConfig = {
-                baseURL: "./node_modules",
-                defaultExtention: "js",
-                meta: {
-                    "*.json": { loader: "json" }
-                },
-                map: {
-                    "json": ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
-                },
-                packages: await this.buildSystemJSPackages()
-            };
+        let systemJSConfig = {
+            baseURL: "./node_modules",
+            defaultExtention: "js",
+            meta: {
+                "*.json": { loader: "json" }
+            },
+            map: {
+                "json": ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
+            },
+            packages: await this.buildSystemJSPackages()
+        };
 
-            await fsAsync.writeFile(appConfigScriptPath, `System.config(${JSON.stringify(systemJSConfig, null, 2)});`);
-        }
+        await fsAsync.writeFile(appConfigScriptPath, `System.config(${JSON.stringify(systemJSConfig, null, 2)});`);
 
         if (!fs.existsSync(appScriptPath)) {
             await fsAsync.writeFile(appScriptPath, `System.import("${bootstrapPackageInfo.name}");`);
@@ -194,6 +198,47 @@ new Application().start();
         scriptSet.debugScripts = [
             ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, appConfigScriptPath),
             ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, appScriptPath)
+        ];
+
+        if (!fs.existsSync(es2015ScriptPath)) {
+            let es2015Builder = new SystemJSBuilder(systemJSConfig.baseURL, systemJSConfig);
+
+            await es2015Builder.buildStatic(bootstrapPackageInfo.name, es2015ScriptPath,
+                {
+                    runtime: true,
+                    minify: !Runtime.isDevelopmentRuntime(),
+                    fetch: (load, fetch) => {
+                        if (!(load.name as string).endsWith(".js")) return fetch(load);
+
+                        let code = fs.readFileSync(load.name.substring(os.platform() === "win32" ? 8 : 7)).toString();
+
+                        return code.replace(/\/\/#\ssourceMappingURL=.*/g, os.EOL);
+                    }
+                });
+        }
+
+        scriptSet.es2015Scripts = [ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, es2015ScriptPath)];
+
+        if (!fs.existsSync(es5ScriptPath)) {
+            let es5Builder = new SystemJSBuilder(systemJSConfig.baseURL, systemJSConfig);
+
+            await es5Builder.buildStatic(bootstrapPackageInfo.name, es5ScriptPath,
+                {
+                    runtime: true,
+                    minify: !Runtime.isDevelopmentRuntime(),
+                    fetch: (load, fetch) => {
+                        if (!(load.name as string).endsWith(".js")) return fetch(load);
+
+                        let code = babel.transformFileSync(load.name.substring(os.platform() === "win32" ? 8 : 7), { presets: ["es2015"], compact: false }).code;
+
+                        return code.replace(/\/\/#\ssourceMappingURL=.*/g, os.EOL);
+                    }
+                });
+        }
+
+        scriptSet.es5Scripts = [
+            ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, path.join(path.parse(require.resolve("babel-polyfill")).dir, "../dist/polyfill.min.js")),
+            ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, es5ScriptPath)
         ];
 
         return scriptSet;

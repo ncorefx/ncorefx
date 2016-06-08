@@ -1,11 +1,12 @@
-import {memoize} from "@ncorefx/fxcore";
+import {Constructor, memoize} from "@ncorefx/fxcore";
 
-import {ReactElement} from "react";
+import * as React from "react";
 
 import {ContentRouteActionResult} from "./RouteActionResults/ContentRouteActionResult";
 import {JsonRouteActionResult} from "./RouteActionResults/JsonRouteActionResult";
 import {ReactViewRouteActionResult} from "./RouteActionResults/ReactViewRouteActionResult";
 import {ReactSpaApplicationRouteActionResult} from "./RouteActionResults/ReactSpaApplicationRouteActionResult";
+import {SpaAppHostProperties} from "./RouteActionResults/SpaAppHostProperties";
 
 /**
  * A base class for route handlers. Route handler provide route action methods that
@@ -45,7 +46,7 @@ export class RouteHandler {
      *
      * @returns A {ReactViewRouteActionResult} that will write the data as HTML to the response.
      */
-    protected reactView(reactElement: ReactElement<any>, contentType?: string): ReactViewRouteActionResult {
+    protected reactView(reactElement: React.ReactElement<any>, contentType?: string): ReactViewRouteActionResult {
         return new ReactViewRouteActionResult(reactElement, contentType);
     }
 
@@ -54,26 +55,13 @@ export class RouteHandler {
      * based Single Page Application (SPA).
      *
      * @param packagePath The path to the location of the React based Single Page Application (SPA) package.
+     * @param hostComponentType An optional {Constructor} that represents the reflection type of the React
+     * Component that will be used to render the HTML.
      *
      * @returns A {ReactSpaApplicationRouteActionResult} that will configure and render the Single
      * Page Application rooted at _packagePath_.
      */
-    protected reactSpaApplication(packagePath: string): ReactSpaApplicationRouteActionResult {
-        return RouteHandler.getSpaApplicationForPath(packagePath);
-    }
-
-    /**
-     * Returns a {ReactSpaApplicationRouteActionResult} for a given path.
-     *
-     * @param packagePath The path to the location of the React based Single Page Application (SPA) package.
-     *
-     * @returns A {ReactSpaApplicationRouteActionResult} object.
-     *
-     * @remarks
-     * The {ReactSpaApplicationRouteActionResult} object is memoized for _packagePath_.
-     */
-    @memoize()
-    private static getSpaApplicationForPath(packagePath: string): ReactSpaApplicationRouteActionResult {
-        return new ReactSpaApplicationRouteActionResult(packagePath);
+    protected reactSpaApplication(packagePath: string, hostComponentType?: Constructor<React.Component<SpaAppHostProperties, {}>>): ReactSpaApplicationRouteActionResult {
+        return new ReactSpaApplicationRouteActionResult(packagePath, hostComponentType);
     }
 }
