@@ -1,7 +1,8 @@
 import {
     Constructor,
     PackageInfo,
-    InvalidOperationError
+    InvalidOperationError,
+    Runtime
 } from "@ncorefx/fxcore";
 
 import {fsAsync} from "@ncorefx/core";
@@ -100,22 +101,35 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
 
         let bootstrapJSCode = `"use strict";
 
-const React = require("react");
-const ReactDOM = require("react-dom");
-const Application = require("${this._spaAppPackageInfo.name}");
+/**
+ * Bootstraps the '${this._spaAppPackageInfo.name}' Single Page Application.
+ */
+
+window.process = {env: {NODE_ENV: "${Runtime.isDevelopmentRuntime() ? "development" : "production"}"}};
+
+const applicationModule = require("${this._spaAppPackageInfo.name}");
 
 let entryPackageData = require("${this._spaAppPackageInfo.name}/package.json");
-
 Reflect.defineMetadata("ncorefx:packages:entry-package", {location: "${this._spaAppPackageInfo.name}/package.json", packageData: entryPackageData}, window);
 
-let application = new Application();
+// Look for the first exported class from the Application module
+function isClass(c) {
+    return c.prototype && c.prototype.constructor;
+}
 
-let divElement = document.getElementById("app") || document.getElementsByTagName("div").item(0);
+let Application = applicationModule;
 
-application.onInitialize()
-    .then((applicationState) => {
-        ReactDOM.render(application.onGetRootComponent(applicationState), divElement);
-    });`;
+if (!isClass(Application)) {
+    for (let c in applicationModule) {
+        Application = applicationModule[c];
+
+        if (isClass(Application)) break;
+    }
+}
+
+// Create and start the application
+new Application().start();
+`;
 
         let bootstrapPackageJson = `{
     "name": "${bootstrapPackageName}",
@@ -246,6 +260,11 @@ application.onInitialize()
                 dependencies["path"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
                 dependencies["os-locale"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
                 dependencies["child_process"] = (dependencies["@ncorefx/fxcore"] as string).replace("/index.js", "/NullModule.js");
+            }
+            else if (dependency === "@ncorefx/fxhttp") {
+                dependencies["request"] = (dependencies["@ncorefx/fxhttp"] as string).replace("/dist/index.js", "/node_modules/browser-request/index.js");
+
+                continue; // Ignore any other dependency for 'fxhttp'
             }
             else if (dependency === "zone.js") {
                 // Make sure we bundle the Browser version of zone.js

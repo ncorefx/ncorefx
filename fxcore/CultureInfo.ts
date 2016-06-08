@@ -49,7 +49,7 @@ export class CultureInfo {
 
         if (cultureCtx) return new CultureInfo(cultureCtx.name);
 
-        return new CultureInfo(window.navigator.language || window.navigator.language);
+        return new CultureInfo(window.navigator.language);
     }
 
     /**

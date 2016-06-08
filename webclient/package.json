@@ -11,6 +11,7 @@
     "peerDependencies": {
         "@ncorefx/fxcore": "~1.0",
         "@ncorefx/fxcomposition": "~1.0",
+        "@ncorefx/fxhttp": "~1.0",
         "react": "~15.1",
         "react-dom": "~15.1",
         "babel-polyfill": "~6.9"

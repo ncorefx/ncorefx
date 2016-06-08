@@ -180,7 +180,7 @@ export class PackageInfo {
     }
 
     private static getExecutingPackage_Browser(filename?: string): PackageInfo {
-        throw new NotImplementedError("PackageInfo#getExecutingPackage is not supported in a Browser runtime.");
+        throw new NotImplementedError("PackageInfo#getExecutingPackage() is not supported in a Browser runtime.");
     }
 
     /**

@@ -1,0 +1,7 @@
+{
+    "ambientDependencies": {
+        "node": "file:../ncorefx-typings/node/index.d.ts",
+        "form-data": "file:../ncorefx-typings/form-data/index.d.ts",
+        "request": "file:../ncorefx-typings/request/index.d.ts"
+    }
+}
