@@ -114,7 +114,7 @@ window.process = {env: {NODE_ENV: "${Runtime.isDevelopmentRuntime() ? "developme
 const applicationModule = require("${this._spaAppPackageInfo.name}");
 
 let entryPackageData = require("${this._spaAppPackageInfo.name}/package.json");
-Reflect.defineMetadata("ncorefx:packages:entry-package", {location: "${this._spaAppPackageInfo.name}/package.json", packageData: entryPackageData}, window);
+Reflect.defineMetadata("ncorefx:packages:entry-package", {location: "node_modules/${this._spaAppPackageInfo.name}/package.json", packageData: entryPackageData}, window);
 
 // Look for the first exported class from the Application module
 function isClass(c) {
