@@ -74,11 +74,25 @@ export class Context {
      * ~~~
      */
     public static getContextObject<T>(type: Constructor<T>): T {
-        let currentZoneContext: ZoneContext = Zone.current.get(Context.ZONESPEC_PROPERTY_SLOTNAME);
+        let currentZone = Zone.current;
 
-        if (!currentZoneContext) return undefined;
+        while (currentZone) {
+            let currentZoneContext = currentZone.get(Context.ZONESPEC_PROPERTY_SLOTNAME) as ZoneContext;
 
-        return <T>currentZoneContext.get(type);
+            if (!currentZoneContext) {
+                currentZone = currentZone.parent;
+
+                continue;
+            }
+
+            let currentObj = currentZoneContext.get(type) as T;
+
+            if (currentObj) return currentObj;
+
+            currentZone = currentZone.parent;
+        }
+
+        return undefined;
     }
 
     /**
