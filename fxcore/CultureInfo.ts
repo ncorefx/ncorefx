@@ -41,7 +41,7 @@ export class CultureInfo {
 
         if (cultureCtx) return new CultureInfo(cultureCtx.name);
 
-        return new CultureInfo(CultureInfo.getOSLocaleString());
+        return CultureInfo.getSystemCulture();
     }
 
     private static getCurrentCulture_Browser(): CultureInfo {
@@ -49,6 +49,24 @@ export class CultureInfo {
 
         if (cultureCtx) return new CultureInfo(cultureCtx.name);
 
+        return CultureInfo.getSystemCulture_Browser();
+    }
+
+    /**
+     * Gets a {CultureInfo} object that represents the culture of the system.
+     *
+     * @returns A {CultureInfo} object representing the system culture.
+     *
+     * @remarks
+     * In a Node.js runtime, the system culture is determined by querying the Operating System. In
+     * a Browser runtime, the culture is taken from the value of 'navigator.language'.
+     */
+    @nodeGuard()
+    public static getSystemCulture(): CultureInfo {
+        return new CultureInfo(CultureInfo.getOSLocaleString());
+    }
+
+    private static getSystemCulture_Browser(): CultureInfo {
         return new CultureInfo(window.navigator.language);
     }
 
