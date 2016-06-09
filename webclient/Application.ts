@@ -16,7 +16,7 @@ export abstract class Application<TState> {
      * Starts the application.
      */
     public async start(): Promise<void> {
-        let currentCultureName = CultureInfo.getCurrentCulture().name;
+        let currentCultureName = CultureInfo.getSystemCulture().name;
 
         await Application.loadResources(currentCultureName);
 

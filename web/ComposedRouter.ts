@@ -4,7 +4,9 @@ import {
     Constructor,
     ConstructorGuard,
     memoize,
-    Context
+    Context,
+    CultureContext,
+    CultureInfo
 } from "@ncorefx/fxcore";
 
 import {
@@ -99,8 +101,13 @@ export class ComposedRouter {
      */
     private createRouteActionHandler(target: Constructor<RouteHandler>, func: RouteActionFunc): express.RequestHandler {
         return async (request: express.Request, response: express.Response, next: express.NextFunction) => {
-            debugger;
-            Context.using([new HttpContext(request)], async () => {
+            let contextObjects: any[] = [];
+            let langMatches = /([a-z]{2}\-[A-z]{2})/.exec(request.header("Accept-Language"));
+
+            contextObjects.push(new CultureContext(langMatches ? langMatches[1] : CultureInfo.getSystemCulture().name));
+            contextObjects.push(new HttpContext(request));
+
+            Context.using(contextObjects, async () => {
                 try {
                     let targetRouteHandler = await this.exportProvider.getExportedValue(target);
 

@@ -74,24 +74,11 @@ export class Context {
      * ~~~
      */
     public static getContextObject<T>(type: Constructor<T>): T {
-        let contextObject: Object = undefined;
-        let currentZone: Zone = Zone.current;
+        let currentZoneContext: ZoneContext = Zone.current.get(Context.ZONESPEC_PROPERTY_SLOTNAME);
 
-        while (currentZone) {
-            let currentZoneContext: ZoneContext = <ZoneContext>currentZone.get(Context.ZONESPEC_PROPERTY_SLOTNAME);
+        if (!currentZoneContext) return undefined;
 
-            // It's plausible that the zone doesn't have the 'contextObjects' property we're looking for because the Zone
-            // API is global and the calling code may have introduced its own zones. If this is the case then just move on
-            if (currentZoneContext) {
-                contextObject = currentZoneContext.get(type);
-
-                if (contextObject) break;
-            }
-
-            currentZone = currentZone.parent;
-        }
-
-        return <T>contextObject;
+        return <T>currentZoneContext.get(type);
     }
 
     /**
