@@ -5,8 +5,6 @@ import * as React from "react";
 import {ContentRouteActionResult} from "./RouteActionResults/ContentRouteActionResult";
 import {JsonRouteActionResult} from "./RouteActionResults/JsonRouteActionResult";
 import {ReactViewRouteActionResult} from "./RouteActionResults/ReactViewRouteActionResult";
-import {ReactSpaApplicationRouteActionResult} from "./RouteActionResults/ReactSpaApplicationRouteActionResult";
-import {SpaAppHostProperties} from "./RouteActionResults/SpaAppHostProperties";
 
 /**
  * A base class for route handlers. Route handler provide route action methods that
@@ -48,20 +46,5 @@ export class RouteHandler {
      */
     protected reactView(reactElement: React.ReactElement<any>, contentType?: string): ReactViewRouteActionResult {
         return new ReactViewRouteActionResult(reactElement, contentType);
-    }
-
-    /**
-     * Creates a {ReactSpaApplicationRouteActionResult} object that renders the supplied path as a React
-     * based Single Page Application (SPA).
-     *
-     * @param packagePath The path to the location of the React based Single Page Application (SPA) package.
-     * @param hostComponentType An optional {Constructor} that represents the reflection type of the React
-     * Component that will be used to render the HTML.
-     *
-     * @returns A {ReactSpaApplicationRouteActionResult} that will configure and render the Single
-     * Page Application rooted at _packagePath_.
-     */
-    protected reactSpaApplication(packagePath: string, hostComponentType?: Constructor<React.Component<SpaAppHostProperties, {}>>): ReactSpaApplicationRouteActionResult {
-        return new ReactSpaApplicationRouteActionResult(packagePath, hostComponentType);
     }
 }

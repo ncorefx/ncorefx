@@ -8,4 +8,6 @@ export * from "./IRouterOptions";
 
 export * from "./Decorators/index";
 
+export * from "./Spa/index";
+
 export * from "./RouteActionResults/index";

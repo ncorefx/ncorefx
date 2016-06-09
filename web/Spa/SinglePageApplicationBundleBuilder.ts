@@ -1,5 +1,4 @@
 import {
-    Constructor,
     PackageInfo,
     InvalidOperationError,
     Runtime
@@ -7,65 +6,53 @@ import {
 
 import {fsAsync} from "@ncorefx/core";
 
-import * as express from "express";
-import * as React from "react";
-import {renderToString} from "react-dom/server";
 import * as path from "path";
 import * as fs from "fs";
 import * as SystemJSBuilder from "systemjs-builder";
 import * as os from "os";
 import * as babel from "babel-core";
 
-import {RouteActionResult} from "./RouteActionResult";
-import {SpaAppHostProperties} from "./SpaAppHostProperties";
-import {DefaultSpaAppHost} from "./DefaultSpaAppHost";
-
 import {HttpContext} from "../HttpContext";
 
+import {SinglePageApplicationBundle} from "./SinglePageApplicationBundle";
+
 /**
- * Represents a HTML content type that is the result of rendering a React based Single Page
- * Application (SPA).
+ * Bundles a React based Single Page Application (SPA).
  */
-export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
-    private _spaAppPackageInfo: PackageInfo;
-    private _hostComponentType: Constructor<React.Component<SpaAppHostProperties, {}>>;
+export class SinglePageApplicationBundleBuilder {
+    private _spaPackageInfo: PackageInfo;
     private _packageInfoStack: PackageInfo[];
 
     /**
-     * Initializes a new {ReactSpaApplicationRouteActionResult} object for the given SPA.
+     * Initializes a new {SinglePageApplicationBundleBuilder} object.
      *
-     * @param spaPackageName The package name of the Single Page Application.
-     * @param hostComponentType A {Constructor} that represents the reflection type of the React Component
-     * that will be used to render the HTML.
+     * @param spaPackageName The package name of the Single Page Application (SPA).
      */
-    constructor(spaPackageName: string, hostComponentType?: Constructor<React.Component<SpaAppHostProperties, {}>>) {
-        super();
-
+    constructor(spaPackageName: string) {
         try {
-            this._spaAppPackageInfo = new PackageInfo(require.resolve(path.join(spaPackageName, "package.json")));
+            this._spaPackageInfo = new PackageInfo(require.resolve(path.join(spaPackageName, "package.json")));
         }
         catch (error) {
             throw new InvalidOperationError(`Could not resolve '${spaPackageName}' to a package.`);
         }
-
-        this._hostComponentType = hostComponentType || DefaultSpaAppHost;
     }
 
     /**
-     * Renders the SPA application to the browser.
+     * Bundles the Single Page Application (SPA) ready for rendering in a Browser runtime.
      *
-     * @param response The {express.Response} object to write the content to.
+     * @returns A promise that yields a {SinglePageApplicationBundle} object that contains the script paths
+     * that should be used when rendering the Single Page Application (SPA).
      */
-    protected async onWriteResult(response: express.Response): Promise<void> {
+    public async bundle(): Promise<SinglePageApplicationBundle> {
         let rootPath = PackageInfo.getEntryPackage().location;
-        let bootstrapPackageName = `${this._spaAppPackageInfo.name}-bootstrap`;
+        let bootstrapPackageName = `${this._spaPackageInfo.name}-bootstrap`;
         let bootstrapPackagePath = path.join(rootPath, "node_modules", bootstrapPackageName);
         let bootstrapPackageInfo: PackageInfo;
 
         if (fs.existsSync(bootstrapPackagePath)) {
             bootstrapPackageInfo = new PackageInfo(path.join(bootstrapPackagePath, "package.json"));
 
-            if (bootstrapPackageInfo.version !== this._spaAppPackageInfo.version) {
+            if (bootstrapPackageInfo.version !== this._spaPackageInfo.version) {
                 // The version of the SPA is different to the bootstrap - delete and rebuild it
                 fs.rmdirSync(bootstrapPackageInfo.location);
 
@@ -80,15 +67,12 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
 
         let isES2015CompatibleBrowser = this.isBrowserES2015Compatible();
 
-        let appHostProperties = new SpaAppHostProperties([ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs").replace("index.js", "dist/system.js"))],
+        return new SinglePageApplicationBundle([SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, require.resolve("systemjs").replace("index.js", "dist/system.js"))],
             isES2015CompatibleBrowser && Runtime.isDevelopmentRuntime()
                 ? scriptSet.debugScripts
                 : isES2015CompatibleBrowser
                     ? scriptSet.es2015Scripts
                     : scriptSet.es5Scripts);
-
-        response.type("text/html");
-        response.send(renderToString(new this._hostComponentType(appHostProperties).render()));
     }
 
     /**
@@ -97,7 +81,7 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
      * @returns A promise that yields a {PackageInfo} for the bootstrap package.
      */
     private async buildBootstrapPackage(rootPath: string, bootstrapPackageName: string,  bootstrapPackagePath: string): Promise<PackageInfo> {
-        this._packageInfoStack = [this._spaAppPackageInfo];
+        this._packageInfoStack = [this._spaPackageInfo];
 
         let systemJSConfig = {
             baseURL: "./node_modules",
@@ -106,7 +90,7 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
                 "*.json": { loader: "json" }
             },
             map: {
-                "json": ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
+                "json": SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
             },
             packages: await this.buildSystemJSPackages()
         };
@@ -114,15 +98,15 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
         let bootstrapJSCode = `"use strict";
 
 /**
- * Bootstraps the '${this._spaAppPackageInfo.name}' Single Page Application.
+ * Bootstraps the '${this._spaPackageInfo.name}' Single Page Application.
  */
 
 window.process = {env: {NODE_ENV: "${Runtime.isDevelopmentRuntime() ? "development" : "production"}"}};
 
-const applicationModule = require("${this._spaAppPackageInfo.name}");
+const applicationModule = require("${this._spaPackageInfo.name}");
 
-let entryPackageData = require("${this._spaAppPackageInfo.name}/package.json");
-Reflect.defineMetadata("ncorefx:packages:entry-package", {location: "node_modules/${this._spaAppPackageInfo.name}/package.json", packageData: entryPackageData}, window);
+let entryPackageData = require("${this._spaPackageInfo.name}/package.json");
+Reflect.defineMetadata("ncorefx:packages:entry-package", {location: "node_modules/${this._spaPackageInfo.name}/package.json", packageData: entryPackageData}, window);
 
 // Look for the first exported class from the Application module
 function isClass(c) {
@@ -145,11 +129,11 @@ new Application().start();
 
         let bootstrapPackageJson = `{
     "name": "${bootstrapPackageName}",
-    "description": "Bootstrapper for '${this._spaAppPackageInfo.name}'",
-    "version": "${this._spaAppPackageInfo.version}",
+    "description": "Bootstrapper for '${this._spaPackageInfo.name}'",
+    "version": "${this._spaPackageInfo.version}",
     "main": "./index.js",
     "peerDependencies": {
-        "${this._spaAppPackageInfo.name}": "${this._spaAppPackageInfo.version}"
+        "${this._spaPackageInfo.name}": "${this._spaPackageInfo.version}"
     }
 }`;
 
@@ -174,7 +158,7 @@ new Application().start();
      * and ES5.
      */
     private async generateSystemJSScripts(bootstrapPackageInfo: PackageInfo): Promise<ScriptSet> {
-        this._packageInfoStack = [bootstrapPackageInfo, this._spaAppPackageInfo];
+        this._packageInfoStack = [bootstrapPackageInfo, this._spaPackageInfo];
 
         let rootPath = PackageInfo.getEntryPackage().location;
 
@@ -192,7 +176,7 @@ new Application().start();
                 "*.json": { loader: "json" }
             },
             map: {
-                "json": ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
+                "json": SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
             },
             packages: await this.buildSystemJSPackages()
         };
@@ -204,8 +188,8 @@ new Application().start();
         }
 
         scriptSet.debugScripts = [
-            ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, appConfigScriptPath),
-            ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, appScriptPath)
+            SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, appConfigScriptPath),
+            SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, appScriptPath)
         ];
 
         if (!fs.existsSync(es2015ScriptPath)) {
@@ -225,7 +209,7 @@ new Application().start();
                 });
         }
 
-        scriptSet.es2015Scripts = [ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, es2015ScriptPath)];
+        scriptSet.es2015Scripts = [SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, es2015ScriptPath)];
 
         if (!fs.existsSync(es5ScriptPath)) {
             let es5Builder = new SystemJSBuilder(systemJSConfig.baseURL, systemJSConfig);
@@ -245,8 +229,8 @@ new Application().start();
         }
 
         scriptSet.es5Scripts = [
-            ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, path.join(path.parse(require.resolve("babel-polyfill")).dir, "../dist/polyfill.min.js")),
-            ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, es5ScriptPath)
+            SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, path.join(path.parse(require.resolve("babel-polyfill")).dir, "../dist/polyfill.min.js")),
+            SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, es5ScriptPath)
         ];
 
         return scriptSet;
@@ -304,7 +288,7 @@ new Application().start();
         for (let dependency in packageInfo.dependencies) {
             let dependencyPackageInfo = await this.resolveDependentPackage(packageInfo, dependency);
 
-            dependencies[dependency] = ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, path.join(dependencyPackageInfo.location, dependencyPackageInfo.main));
+            dependencies[dependency] = SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, path.join(dependencyPackageInfo.location, dependencyPackageInfo.main));
 
             if (dependency === "@ncorefx/fxcore") {
                 // Write out the null packages that will be requested via fxcore
@@ -321,7 +305,7 @@ new Application().start();
             }
             else if (dependency === "zone.js") {
                 // Make sure we bundle the Browser version of zone.js
-                dependencies["zone.js"] = ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, path.join(dependencyPackageInfo.location, "./dist/zone.min.js"));
+                dependencies["zone.js"] = SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, path.join(dependencyPackageInfo.location, "./dist/zone.min.js"));
             }
 
             dependencies = Object.assign(dependencies, await this.buildSystemJSPackageDependencies(rootPath, dependencyPackageInfo));
@@ -402,7 +386,7 @@ new Application().start();
  * Encapsulates the individual set of scripts to support debug, ES2015 and ES5 scripts for the generated SPA.
  *
  * @remarks
- * The {ScriptSet} class is used privately by the {ReactSpaApplicationRouteActionResult} class during
+ * The {ScriptSet} class is used privately by the {SinglePageApplicationBundleBuilder} class during
  * script generation.
  */
 class ScriptSet {
