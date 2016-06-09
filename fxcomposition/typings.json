@@ -3,7 +3,6 @@
         "@ncorefx/fxcore": "file:../fxcore/dist/index.d.ts"
     },
     "ambientDependencies": {
-        "node": "file:../ncorefx-typings/node/index.d.ts",
         "reflect-metadata": "file:../fxcore/node_modules/reflect-metadata/reflect-metadata.d.ts"
     }
 }

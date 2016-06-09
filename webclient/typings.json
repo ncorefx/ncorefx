@@ -1,5 +1,11 @@
 {
+    "dependencies": {
+        "@ncorefx/fxcore": "file:../fxcore/dist/index.d.ts",
+        "@ncorefx/fxcomposition": "file:../fxcomposition/dist/index.d.ts",
+        "@ncorefx/fxhttp": "file:../fxhttp/dist/index.d.ts"
+    },
     "ambientDependencies": {
+        "reflect-metadata": "file:../fxcore/node_modules/reflect-metadata/reflect-metadata.d.ts",
         "react": "file:../ncorefx-typings/react/index.d.ts",
         "react-dom": "file:../ncorefx-typings/react-dom/index.d.ts"
     }

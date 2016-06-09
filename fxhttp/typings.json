@@ -1,4 +1,7 @@
 {
+    "dependencies": {
+        "@ncorefx/fxcore": "file:../fxcore/dist/index.d.ts"
+    },
     "ambientDependencies": {
         "node": "file:../ncorefx-typings/node/index.d.ts",
         "form-data": "file:../ncorefx-typings/form-data/index.d.ts",
