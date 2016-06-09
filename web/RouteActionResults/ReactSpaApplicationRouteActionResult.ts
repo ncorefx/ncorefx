@@ -78,9 +78,17 @@ export class ReactSpaApplicationRouteActionResult extends RouteActionResult {
 
         let scriptSet = await this.generateSystemJSScripts(bootstrapPackageInfo);
 
+        let isES2015CompatibleBrowser = this.isBrowserES2015Compatible();
+
+        let appHostProperties = new SpaAppHostProperties([ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs").replace("index.js", "dist/system.js"))],
+            isES2015CompatibleBrowser && Runtime.isDevelopmentRuntime()
+                ? scriptSet.debugScripts
+                : isES2015CompatibleBrowser
+                    ? scriptSet.es2015Scripts
+                    : scriptSet.es5Scripts);
+
         response.type("text/html");
-        response.send(renderToString(new this._hostComponentType(new SpaAppHostProperties([ReactSpaApplicationRouteActionResult.makeRelativePath(rootPath, require.resolve("systemjs").replace("index.js", "dist/system.js"))],
-                                                                                           scriptSet.debugScripts)).render()));
+        response.send(renderToString(new this._hostComponentType(appHostProperties).render()));
     }
 
     /**
@@ -354,6 +362,26 @@ new Application().start();
         }
 
         throw new InvalidOperationError(`Could not resolve package '${dependencyName}' from '${packageInfo.location}'.`);
+    }
+
+    /**
+     * Determines if the User-Agent header represents a Browser capable of running ES2015.
+     *
+     * @returns *true* if the User-Agent header indicates an ES2015 compatible browser;
+     * otherwise *false*.
+     */
+    private isBrowserES2015Compatible(): boolean {
+        const chromeMinMajorVersion: number = 50;
+
+        let httpCtx = HttpContext.current;
+
+        if (!httpCtx) return false;
+
+        let matches = /Chrome\/(\d*)/.exec(httpCtx.request.header("User-Agent"));
+
+        return matches
+            ? parseInt(matches[1]) >= chromeMinMajorVersion
+            : false;
     }
 
     /**
