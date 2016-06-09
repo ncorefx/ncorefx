@@ -17,8 +17,12 @@ gulp.task("install", () => {
         }
     ];
 
+    // We need to build the project after installation because its typings may be referenced
+    // by dependent projects further on in the pipeline
+    
     return workspace.workspacePackages()
-        .pipe(workspace.npmInstall({ postInstallActions: postInstallActions }));
+        .pipe(workspace.npmInstall({ postInstallActions: postInstallActions }))
+        .pipe(workspace.buildTypeScriptProject());
 });
 
 gulp.task("compile", () => {
