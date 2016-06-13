@@ -27,15 +27,10 @@ export class SinglePageApplicationBundleBuilder {
     /**
      * Initializes a new {SinglePageApplicationBundleBuilder} object.
      *
-     * @param spaPackageName The package name of the Single Page Application (SPA).
+     * @param spaPackageInfo The {PackageInfo} that contains the Single Page Application (SPA).
      */
-    constructor(spaPackageName: string) {
-        try {
-            this._spaPackageInfo = new PackageInfo(require.resolve(path.join(spaPackageName, "package.json")));
-        }
-        catch (error) {
-            throw new InvalidOperationError(`Could not resolve '${spaPackageName}' to a package.`);
-        }
+    constructor(spaPackageInfo: PackageInfo) {
+        this._spaPackageInfo = spaPackageInfo;
     }
 
     /**

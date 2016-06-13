@@ -89,7 +89,7 @@ export abstract class Application<TState> {
              for (let keyValuePair of packages) {
                  let responseMessage = await httpClient.get(`node_modules/${new PackageInfo(keyValuePair[1].location).location}/.resources/${cultureName}/strings.json`);
 
-                 if (responseMessage.statusCode === 200) {
+                 if (responseMessage.isSuccessful()) {
                     packageSet.set(keyValuePair[0], JSON.parse(responseMessage.body));
                  }
              }

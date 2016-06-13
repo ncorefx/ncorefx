@@ -41,8 +41,56 @@ export class HttpClient {
     }
 
     public get(uri: string): Promise<HttpResponseMessage> {
-        return new Promise<any>((resolve, reject) => {
+        return new Promise<HttpResponseMessage>((resolve, reject) => {
             request.get(this.normalizeUri(uri), (error, response, body) => {
+                let responseMessage = new HttpResponseMessage(response.statusCode);
+
+                if (!error && response.statusCode === 200) responseMessage.body = body;
+
+                resolve(responseMessage);
+            });
+        });
+    }
+
+    public put(uri: string): Promise<HttpResponseMessage> {
+        return new Promise<HttpResponseMessage>((resolve, reject) => {
+            request.put(this.normalizeUri(uri), (error, response, body) => {
+                let responseMessage = new HttpResponseMessage(response.statusCode);
+
+                if (!error && response.statusCode === 200) responseMessage.body = body;
+
+                resolve(responseMessage);
+            });
+        });
+    }
+
+    public post(uri: string): Promise<HttpResponseMessage> {
+        return new Promise<HttpResponseMessage>((resolve, reject) => {
+            request.post(this.normalizeUri(uri), (error, response, body) => {
+                let responseMessage = new HttpResponseMessage(response.statusCode);
+
+                if (!error && response.statusCode === 200) responseMessage.body = body;
+
+                resolve(responseMessage);
+            });
+        });
+    }
+
+    public patch(uri: string): Promise<HttpResponseMessage> {
+        return new Promise<HttpResponseMessage>((resolve, reject) => {
+            request.patch(this.normalizeUri(uri), (error, response, body) => {
+                let responseMessage = new HttpResponseMessage(response.statusCode);
+
+                if (!error && response.statusCode === 200) responseMessage.body = body;
+
+                resolve(responseMessage);
+            });
+        });
+    }
+
+    public delete(uri: string): Promise<HttpResponseMessage> {
+        return new Promise<HttpResponseMessage>((resolve, reject) => {
+            request.del(this.normalizeUri(uri), (error, response, body) => {
                 let responseMessage = new HttpResponseMessage(response.statusCode);
 
                 if (!error && response.statusCode === 200) responseMessage.body = body;
