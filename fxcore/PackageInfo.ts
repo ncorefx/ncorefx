@@ -1,6 +1,6 @@
 import {nodeGuard} from "./Decorators/NodeGuardDecorator";
 
-import {NotImplementedError} from "./Errors/NotImplementedError";
+import {InvalidOperationError} from "./Errors/InvalidOperationError";
 
 import {SyncLazy} from "./SyncLazy";
 
@@ -149,19 +149,10 @@ export class PackageInfo {
     /**
      * Gets the package that contains the code that is currently executing.
      *
-     * @param filename An optional filename that is used to help determine the executing code.
-     *
      * @returns A {PackageInfo} object representing the package that contains the executing code.
-     *
-     * @remarks
-     * _filename_ is not required when executing in a Node runtime since the callsite can be examined.
-     * It is required in a Browser runtime however because the filename will be looked up in the
-     * bundle metadata to determine the associated package.
      */
     @nodeGuard()
-    public static getExecutingPackage(filename?: string): PackageInfo {
-        if (filename) return PackageInfo.findPackageForPath(path.parse(filename).dir);
-
+    public static getExecutingPackage(): PackageInfo {
         let callsite = new PackageInfo.CallSite();
 
         let stackFrameFilename: string;
@@ -179,8 +170,42 @@ export class PackageInfo {
             : undefined;
     }
 
+    /**
+     * Gets the package with the given name using normal package resolution rules.
+     *
+     * @param packageName The name of the package to find.
+     *
+     * @return A {PackageInfo} object representing the package with the name _packageName_. If
+     * the package couldn't be resolved, then the method returns *undefined*.
+     */
+    @nodeGuard()
+    public static getNamedPackage(packageName: string): PackageInfo {
+        try {
+            return new PackageInfo(require.resolve(path.join(packageName, "package.json")));
+        }
+        catch (error) {
+            return undefined;
+        }
+    }
+
+    private static getNamedPackage_Browser(packageName: string): PackageInfo {
+        let packageSet = <Map<string, any>>Reflect.getMetadata("ncorefx:packages:packages", window);
+
+        if (!packageSet) return undefined;
+
+        let packageData = packageSet.get(packageName);
+
+        if (!packageData) return undefined;
+
+        let packageInfo = new PackageInfo(packageData.location);
+
+        packageInfo._packageData = new SyncLazy<any>(() => packageData.packageData);
+
+        return packageInfo;
+    }
+
     private static getExecutingPackage_Browser(filename?: string): PackageInfo {
-        throw new NotImplementedError("PackageInfo#getExecutingPackage() is not supported in a Browser runtime.");
+        throw new InvalidOperationError("PackageInfo#getExecutingPackage() is not supported in a Browser runtime.");
     }
 
     /**

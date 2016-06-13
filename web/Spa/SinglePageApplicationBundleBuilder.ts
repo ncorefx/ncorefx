@@ -22,6 +22,7 @@ import {SinglePageApplicationBundle} from "./SinglePageApplicationBundle";
 export class SinglePageApplicationBundleBuilder {
     private _spaPackageInfo: PackageInfo;
     private _packageInfoStack: PackageInfo[];
+    private _dependentPackages: Map<string, PackageInfo>;
 
     /**
      * Initializes a new {SinglePageApplicationBundleBuilder} object.
@@ -67,7 +68,7 @@ export class SinglePageApplicationBundleBuilder {
 
         let isES2015CompatibleBrowser = this.isBrowserES2015Compatible();
 
-        return new SinglePageApplicationBundle([SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, require.resolve("systemjs").replace("index.js", "dist/system.js"))],
+        return new SinglePageApplicationBundle([SinglePageApplicationBundleBuilder.makePath(rootPath, require.resolve("systemjs").replace("index.js", "dist/system.js"))],
             isES2015CompatibleBrowser && Runtime.isDevelopmentRuntime()
                 ? scriptSet.debugScripts
                 : isES2015CompatibleBrowser
@@ -90,10 +91,23 @@ export class SinglePageApplicationBundleBuilder {
                 "*.json": { loader: "json" }
             },
             map: {
-                "json": SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
+                "json": SinglePageApplicationBundleBuilder.makePath(rootPath, require.resolve("systemjs-plugin-json"))
             },
             packages: await this.buildSystemJSPackages()
         };
+
+        let packageSetJSRequireCode: string = "";
+        let packageSetJSMapCode: string = `packageSet.set("${this._spaPackageInfo.name}", {location: "${this._spaPackageInfo.name}/package.json", packageData: entryPackageData});${os.EOL}`;
+
+        let dependentPackageIdx = 0;
+        for (let dependentPackage of this._dependentPackages) {
+            let dependentPackageLocation = `${SinglePageApplicationBundleBuilder.makePath(path.join(rootPath, "node_modules"), dependentPackage[1].location, false)}/package.json`;
+
+            packageSetJSRequireCode += `const p${dependentPackageIdx} = require("${dependentPackageLocation}");${os.EOL}`;
+            packageSetJSMapCode += `packageSet.set("${dependentPackage[0]}", {location: "${dependentPackageLocation}", packageData: p${dependentPackageIdx}});${os.EOL}`;
+
+            dependentPackageIdx++;
+        }
 
         let bootstrapJSCode = `"use strict";
 
@@ -106,7 +120,13 @@ window.process = {env: {NODE_ENV: "${Runtime.isDevelopmentRuntime() ? "developme
 const applicationModule = require("${this._spaPackageInfo.name}");
 
 let entryPackageData = require("${this._spaPackageInfo.name}/package.json");
-Reflect.defineMetadata("ncorefx:packages:entry-package", {location: "node_modules/${this._spaPackageInfo.name}/package.json", packageData: entryPackageData}, window);
+Reflect.defineMetadata("ncorefx:packages:entry-package", {location: "${this._spaPackageInfo.name}/package.json", packageData: entryPackageData}, window);
+
+let packageSet = new Map();
+
+${packageSetJSRequireCode}
+${packageSetJSMapCode}
+Reflect.defineMetadata("ncorefx:packages:packages", packageSet, window);
 
 // Look for the first exported class from the Application module
 function isClass(c) {
@@ -176,7 +196,7 @@ new Application().start();
                 "*.json": { loader: "json" }
             },
             map: {
-                "json": SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, require.resolve("systemjs-plugin-json"))
+                "json": SinglePageApplicationBundleBuilder.makePath(rootPath, require.resolve("systemjs-plugin-json"))
             },
             packages: await this.buildSystemJSPackages()
         };
@@ -188,8 +208,8 @@ new Application().start();
         }
 
         scriptSet.debugScripts = [
-            SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, appConfigScriptPath),
-            SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, appScriptPath)
+            SinglePageApplicationBundleBuilder.makePath(rootPath, appConfigScriptPath),
+            SinglePageApplicationBundleBuilder.makePath(rootPath, appScriptPath)
         ];
 
         if (!fs.existsSync(es2015ScriptPath)) {
@@ -209,7 +229,7 @@ new Application().start();
                 });
         }
 
-        scriptSet.es2015Scripts = [SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, es2015ScriptPath)];
+        scriptSet.es2015Scripts = [SinglePageApplicationBundleBuilder.makePath(rootPath, es2015ScriptPath)];
 
         if (!fs.existsSync(es5ScriptPath)) {
             let es5Builder = new SystemJSBuilder(systemJSConfig.baseURL, systemJSConfig);
@@ -229,8 +249,8 @@ new Application().start();
         }
 
         scriptSet.es5Scripts = [
-            SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, path.join(path.parse(require.resolve("babel-polyfill")).dir, "../dist/polyfill.min.js")),
-            SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, es5ScriptPath)
+            SinglePageApplicationBundleBuilder.makePath(rootPath, path.join(path.dirname(require.resolve("babel-polyfill")), "../dist/polyfill.min.js")),
+            SinglePageApplicationBundleBuilder.makePath(rootPath, es5ScriptPath)
         ];
 
         return scriptSet;
@@ -244,6 +264,8 @@ new Application().start();
      * bundling.
      */
     private async buildSystemJSPackages(): Promise<Object> {
+        this._dependentPackages = new Map<string, PackageInfo>();
+
         let systemJSPackages = {};
 
         systemJSPackages["react"] = { "main": "./dist/react-with-addons.min.js", "format": "cjs" };
@@ -288,7 +310,9 @@ new Application().start();
         for (let dependency in packageInfo.dependencies) {
             let dependencyPackageInfo = await this.resolveDependentPackage(packageInfo, dependency);
 
-            dependencies[dependency] = SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, path.join(dependencyPackageInfo.location, dependencyPackageInfo.main));
+            this._dependentPackages.set(dependencyPackageInfo.name, dependencyPackageInfo);
+
+            dependencies[dependency] = SinglePageApplicationBundleBuilder.makePath(rootPath, path.join(dependencyPackageInfo.location, dependencyPackageInfo.main));
 
             if (dependency === "@ncorefx/fxcore") {
                 // Write out the null packages that will be requested via fxcore
@@ -305,7 +329,7 @@ new Application().start();
             }
             else if (dependency === "zone.js") {
                 // Make sure we bundle the Browser version of zone.js
-                dependencies["zone.js"] = SinglePageApplicationBundleBuilder.makeRelativePath(rootPath, path.join(dependencyPackageInfo.location, "./dist/zone.min.js"));
+                dependencies["zone.js"] = SinglePageApplicationBundleBuilder.makePath(rootPath, path.join(dependencyPackageInfo.location, "./dist/zone.min.js"));
             }
 
             dependencies = Object.assign(dependencies, await this.buildSystemJSPackageDependencies(rootPath, dependencyPackageInfo));
@@ -369,15 +393,18 @@ new Application().start();
     }
 
     /**
-     * Returns the relative path from a root path and a path to make relative to it.
+     * Returns a path where the root path is removed from the path to make.
      *
      * @param rootPath The root path.
      * @param pathToMake The path that is to be made relative to _rootPath_.
+     * @param makeRelative *true* to make the path relative.
      *
-     * @returns A string representing the relative path from _pathToMake_.
+     * @returns A string representing the made path from _pathToMake_ without the _rootPath.
      */
-    private static makeRelativePath(rootPath: string, pathToMake: string): string {
-        return `./${pathToMake.substr(rootPath.length + 1).replace(/\\/g, "/")}`;
+    private static makePath(rootPath: string, pathToMake: string, makeRelative: boolean = true): string {
+        if (makeRelative) return `./${pathToMake.substr(rootPath.length + 1).replace(/\\/g, "/")}`;
+
+        return `${pathToMake.substr(rootPath.length + 1).replace(/\\/g, "/")}`;
     }
 }
 

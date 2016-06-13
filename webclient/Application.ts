@@ -4,8 +4,6 @@ import {HttpClient} from "@ncorefx/fxhttp";
 import {ReactElement} from "react";
 import * as ReactDOM from "react-dom";
 
-declare function require(modulePath: string);
-
 /**
  * A base class for bootstrapping a Single Page Application (SPA) based on ReactJS.
  *
@@ -76,17 +74,28 @@ export abstract class Application<TState> {
      * {PackageInfo} and the culture name given.
      */
      private static async loadResources(cultureName: string): Promise<void> {
-         let resourceSet = <Map<string, any>>Reflect.getMetadata("ncorefx:resources:strings", window);
+         let resourceSet = <Map<string, Map<string, any>>>Reflect.getMetadata("ncorefx:resources:strings", window);
 
-         if (!resourceSet) resourceSet = new Map<string, any>();
+         if (!resourceSet) resourceSet = new Map<string, Map<string, any>>();
 
          if (resourceSet.get(cultureName)) return;
 
          let httpClient = new HttpClient();
+         let packages = <Map<string, any>>Reflect.getMetadata("ncorefx:packages:packages", window);
 
-         let resourceData = await httpClient.get(`${PackageInfo.getEntryPackage().location}/.resources/${cultureName}/strings.json`);
+         if (packages) {
+             let packageSet = new Map<string, any>();
 
-         resourceSet.set(cultureName, JSON.parse(resourceData));
+             for (let keyValuePair of packages) {
+                 let responseMessage = await httpClient.get(`node_modules/${new PackageInfo(keyValuePair[1].location).location}/.resources/${cultureName}/strings.json`);
+
+                 if (responseMessage.statusCode === 200) {
+                    packageSet.set(keyValuePair[0], JSON.parse(responseMessage.body));
+                 }
+             }
+
+             resourceSet.set(cultureName, packageSet);
+         }
 
          Reflect.defineMetadata("ncorefx:resources:strings", resourceSet, window);
     }

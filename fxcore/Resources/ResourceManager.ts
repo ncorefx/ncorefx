@@ -35,11 +35,15 @@ export class ResourceManager {
     }
 
     private getFormattedString_Browser(stringName: string, values?: Object): string {
-        let resourceSet = <Map<string, any>>Reflect.getMetadata("ncorefx:resources:strings", window);
+        let resourceSet = <Map<string, Map<string, any>>>Reflect.getMetadata("ncorefx:resources:strings", window);
 
         if (!resourceSet) throw new MissingResourcesError(`Could not find string resource '${stringName}' for culture '${this._cultureInfo.name}'.`);
 
-        let strings = resourceSet.get(this._cultureInfo.name);
+        let packageSet = resourceSet.get(this._cultureInfo.name);
+
+        if (!packageSet) throw new MissingResourcesError(`Could not find string resource '${stringName}' for culture '${this._cultureInfo.name}'.`);
+
+        let strings = packageSet.get(this._packageInfo.name);
 
         if (!strings) throw new MissingResourcesError(`Could not find string resource '${stringName}' for culture '${this._cultureInfo.name}'.`);
 

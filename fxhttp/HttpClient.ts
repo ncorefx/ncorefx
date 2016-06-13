@@ -2,6 +2,8 @@ import * as request from "request";
 
 import {nodeGuard} from "@ncorefx/fxcore";
 
+import {HttpResponseMessage} from "./HttpResponseMessage";
+
 /**
  * Provides a class for sending HTTP requests and receiving HTTP responses from a resource identified by
  * a URI.
@@ -38,12 +40,14 @@ export class HttpClient {
         this._baseAddress = value;
     }
 
-    public get(uri: string): Promise<any> {
+    public get(uri: string): Promise<HttpResponseMessage> {
         return new Promise<any>((resolve, reject) => {
             request.get(this.normalizeUri(uri), (error, response, body) => {
-                if (!error && response.statusCode === 200) return resolve(body);
+                let responseMessage = new HttpResponseMessage(response.statusCode);
 
-                reject(error);
+                if (!error && response.statusCode === 200) responseMessage.body = body;
+
+                resolve(responseMessage);
             });
         });
     }
