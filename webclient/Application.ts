@@ -75,17 +75,19 @@ export abstract class Application<TState> {
      * A HTTP request will be made to the server using a URI built from the location of the entry
      * {PackageInfo} and the culture name given.
      */
-    private static async loadResources(cultureName: string): Promise<void> {
-        let httpClient = new HttpClient();
+     private static async loadResources(cultureName: string): Promise<void> {
+         let resourceSet = <Map<string, any>>Reflect.getMetadata("ncorefx:resources:strings", window);
 
-        let resourceData = await httpClient.get(`${PackageInfo.getEntryPackage().location}/.resources/${cultureName}/strings.json`);
+         if (!resourceSet) resourceSet = new Map<string, any>();
 
-        let resourceSet = <Map<string, any>>Reflect.getMetadata("ncorefx:resources:strings", window);
+         if (resourceSet.get(cultureName)) return;
 
-        if (!resourceSet) resourceSet = new Map<string, any>();
+         let httpClient = new HttpClient();
 
-        resourceSet.set(cultureName, JSON.parse(resourceData));
+         let resourceData = await httpClient.get(`${PackageInfo.getEntryPackage().location}/.resources/${cultureName}/strings.json`);
 
-        Reflect.defineMetadata("ncorefx:resources:strings", resourceSet, window);
+         resourceSet.set(cultureName, JSON.parse(resourceData));
+
+         Reflect.defineMetadata("ncorefx:resources:strings", resourceSet, window);
     }
 }

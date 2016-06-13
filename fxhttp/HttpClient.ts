@@ -17,7 +17,7 @@ export class HttpClient {
      * Initializes a new {HttpClient} object.
      */
     constructor() {
-        this._baseAddress = this.getBaseAddress();
+        this._baseAddress = this.initializeBaseAddress();
     }
 
     /**
@@ -49,20 +49,20 @@ export class HttpClient {
     }
 
     /**
-     * Retrieves the current base address.
+     * Initializes the current base address.
      *
      * @returns A string representing the current base address.
      *
      * @remarks
      * For a Node.js runtime, {HttpClient#getBaseAddress} will return undefined. For a Browser runtime
-     * the origin address of the current window location will be returned.
+     * the host portion of the current window location will be returned.
      */
     @nodeGuard()
-    private getBaseAddress(): string {
+    private initializeBaseAddress(): string {
         return undefined;
     }
 
-    private getBaseAddress_Browser(): string {
+    private initializeBaseAddress_Browser(): string {
         var location = window.location;
 
         return `${location.protocol}//${location.host}`;
@@ -77,7 +77,7 @@ export class HttpClient {
      *
      * @remarks
      * The value specified by _uri_ will be joined to the current {HttpClient#baseAddress} unless the supplied
-     * URI is already fully qualified.
+     * URI represents a fully qualified URI.
      */
     private normalizeUri(uri: string): string {
         if (!this._baseAddress) return uri;

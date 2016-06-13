@@ -11,7 +11,6 @@ export * from "./CoreTypes";
 export * from "./SyncLazy";
 export * from "./Lazy";
 export * from "./ILazy";
-export * from "./Tuple";
 export * from "./Context";
 export * from "./Runtime";
 export * from "./RuntimeType";
