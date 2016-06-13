@@ -226,7 +226,7 @@ new Application().start();
 
         scriptSet.es2015Scripts = [SinglePageApplicationBundleBuilder.makePath(rootPath, es2015ScriptPath)];
 
-        if (!fs.existsSync(es5ScriptPath)) {
+        if (!fs.existsSync(es5ScriptPath) && !Runtime.isDevelopmentRuntime()) {
             let es5Builder = new SystemJSBuilder(systemJSConfig.baseURL, systemJSConfig);
 
             await es5Builder.buildStatic(bootstrapPackageInfo.name, es5ScriptPath,
