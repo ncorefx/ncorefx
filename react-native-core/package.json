@@ -1,0 +1,21 @@
+{
+    "name": "@ncorefx/react-native-core",
+    "description": "Contains the base types and utilities for React Native based applications.",
+    "version": "1.0.10",
+    "main": "./dist/index.js",
+    "typings": "./dist/index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/timjroberts/tabhub.git"
+    },
+    "peerDependencies": {
+        "react": "15.1.0",
+        "react-native": "0.28.0",
+        "@ncorefx/core": "~1.0"
+    },
+    "devDependencies": {
+        "@types/react": "latest",
+        "@types/react-native": "latest",
+        "@ncorefx/core": "latest"
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "workspace": true,
+    "name": "ncorefx-workspace",
+    "description": "The '@ncorefx' workspace.",
+    "version": "1.0.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ncorefx/ncorefx.git"
+    },
+    "dependencies": {
+        "gulp": "~3.9",
+        "gulp-npmworkspace": "~1.1",
+        "typescript": "beta"
+    }
+}

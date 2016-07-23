@@ -1,0 +1,4 @@
+{
+    "contextNotSupported": "Support for execution contexts is disabled for this platform.",
+    "missingStringResource": "Could not find string resource '{stringName}' for culture '{cultureName}'."
+}

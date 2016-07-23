@@ -1,0 +1,7 @@
+{
+    "importCardinalityMismatch": "There are zero, or more than one exports that meet the import of '{typeName}'.",
+    "missingImportTarget": "Unable to determine an import target.",
+    "missingConstructorImportTarget": "Failed to get an export from import target '{typeName}'.",
+    "exportProviderFunctionFailure": "Failed to get an export from export provider function.",
+    "compositionFailure": "Unable to compose an export for '{typeName}'\nParameter import errors:"
+}

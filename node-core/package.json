@@ -1,0 +1,18 @@
+{
+    "name": "@ncorefx/node-core",
+    "description": "Contains the base types and utilities for Node.js based applications.",
+    "version": "1.0.10",
+    "main": "./dist/index.js",
+    "typings": "./dist/index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/timjroberts/tabhub.git"
+    },
+    "peerDependencies": {
+        "@ncorefx/core": "~1.0"
+    },
+    "devDependencies": {
+        "@ncorefx/core": "latest",
+        "@types/node": "latest"
+    }
+}

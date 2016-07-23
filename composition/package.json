@@ -1,0 +1,19 @@
+{
+    "name": "@ncorefx/composition",
+    "description": "Contains the base types and utilities for building composable Node.js and Web Browser based applications.",
+    "version": "1.0.10",
+    "main": "./dist/index.js",
+    "typings": "./dist/index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/timjroberts/tabhub.git"
+    },
+    "peerDependencies": {
+        "@ncorefx/core": "~1.0",
+        "@ncorefx/reflection": "~1.0"
+    },
+    "devDependencies": {
+        "@ncorefx/core": "latest",
+        "@ncorefx/reflection": "~1.0"
+    }
+}
