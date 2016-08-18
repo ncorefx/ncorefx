@@ -5,8 +5,7 @@ const workspace = require("gulp-npmworkspace");
 
 gulp.task("install", () => {
     return workspace.workspacePackages()
-        .pipe(workspace.npmInstall())
-        .pipe(workspace.buildTypeScriptProject());
+        .pipe(workspace.npmInstall());
 });
 
 gulp.task("compile", () => {

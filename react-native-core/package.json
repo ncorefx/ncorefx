@@ -6,7 +6,7 @@
     "typings": "./dist/index.d.ts",
     "repository": {
         "type": "git",
-        "url": "https://github.com/timjroberts/tabhub.git"
+        "url": "https://github.com/ncorefx/ncorefx.git"
     },
     "peerDependencies": {
         "react": "15.1.0",
@@ -15,7 +15,6 @@
     },
     "devDependencies": {
         "@types/react": "latest",
-        "@types/react-native": "latest",
-        "@ncorefx/core": "latest"
+        "@types/react-native": "latest"
     }
 }
